@@ -9,10 +9,9 @@ l80_neural_closure/
 ├── src/
 │   ├── __init__.py
 │   ├── physics.py                 # Ecuaciones reales de L80 (física del sistema)
-│   ├── dataset.py                 # Carga de datos y filtrado de transitorios (t < 10)
-│   ├── models.py                  # Arquitectura del Conditional Velocity Field
+│   ├── load_data.py                 # Carga de datos y filtrado de transitorios (t < 10)
+│   ├── model.py                  # Arquitectura del Conditional Velocity Field
 │   ├── flow_matching.py           # Trainer OT-FM (Loss, muestreo sintético en tau)
-│   └── simulation.py              # Integrador online y propagación del Ensemble
 ├── train.py                       # Script ejecutable para entrenamiento offline
 ├── simulate_online.py             # Script ejecutable para simulación online y gráficos
 └── requirements.txt

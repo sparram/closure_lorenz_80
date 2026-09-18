@@ -34,3 +34,14 @@ def get_dataloaders(file_path='data/NN_training_data.mat', batch_size=256, val_s
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
     return train_loader, val_loader
+
+# Test unitario de dimensiones
+if __name__ == "__main__":
+    train_loader, val_loader = get_dataloaders('../data/NN_training_data.mat', batch_size=256)
+    for y_batch, xz_batch in train_loader:
+        # It should be
+        # y_batch shape: torch.Size([256, 3])
+        # xz_batch shape: torch.Size([256, 6])
+        print(y_batch.shape)
+        print(xz_batch.shape)
+        break
