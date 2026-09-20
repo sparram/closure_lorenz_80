@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io
-from src.models import ConditionalVelocityField
+from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
@@ -28,8 +28,12 @@ def dYdt_torch(y, x, z):
 
 def rk4_online_step(cfm, y_ensemble, dt):
     """ Paso RK4 acoplado con muestreo estocástico de Flow Matching """
-    hat_x, hat_z = cfm.sample(y_ensemble, steps=5)
-
+    hat_x, hat_z = cfm.sample(y_ensemble, steps=10)
+    
+    # Acotar a valores físicamente válidos
+    hat_x = torch.clamp(hat_x, min=-5.0, max=5.0)
+    hat_z = torch.clamp(hat_z, min=-5.0, max=5.0)
+    
     k1 = dYdt_torch(y_ensemble, hat_x, hat_z)
     k2 = dYdt_torch(y_ensemble + 0.5 * dt * k1, hat_x, hat_z)
     k3 = dYdt_torch(y_ensemble + 0.5 * dt * k2, hat_x, hat_z)
@@ -75,6 +79,7 @@ def run_simulation(n_ensemble=100, n_steps=20000, dt=4.2e-3):
                      mean_traj[:, 0] - 2*std_traj[:, 0], 
                      mean_traj[:, 0] + 2*std_traj[:, 0], 
                      color='r', alpha=0.25, label='Incertidumbre ±2σ')
+    plt.ylim(-2.0, 2.0)
     plt.xlabel('Tiempo físico (t)')
     plt.ylabel('y1')
     plt.title('Cierre Neuronal L80 via Conditional Flow Matching (Monte Carlo Ensemble)')

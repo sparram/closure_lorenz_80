@@ -30,8 +30,8 @@ def get_dataloaders(file_path='data/NN_training_data.mat', batch_size=256, val_s
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
     # Crear iteradores
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=2)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     return train_loader, val_loader
 
