@@ -5,15 +5,19 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
 def load_l80_dataset(file_path='data/NHLR_data.mat', t_transient=10.0, dt=4.2e-3, save_stats=True, stats_path='checkpoints/norm_stats.pt'):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"No se encontró el archivo de datos en: {file_path}")
+
     data = scipy.io.loadmat(file_path)
     U = data['u']  # Dimensión original: (9, nt)
 
-    # Filtrar Transitorio
+    # Filtrar transitorio de forma limpia desde el inicio
     idx_start = int(t_transient / dt)
     Y_data = U[3:6, idx_start:].T
-    X = U[0:3, :]
-    Z = U[6:9, :]
-    XZ_data = np.vstack([X, Z])[:, idx_start:].T
+    X_data = U[0:3, idx_start:].T
+    Z_data = U[6:9, idx_start:].T
+    
+    XZ_data = np.hstack([X_data, Z_data])  # Shape: (nt_filtered, 6)
 
     # Convertir a tensores de PyTorch
     y_tensor = torch.tensor(Y_data, dtype=torch.float32)
@@ -21,16 +25,12 @@ def load_l80_dataset(file_path='data/NHLR_data.mat', t_transient=10.0, dt=4.2e-3
 
     # 1. Calcular media y desviación estándar
     y_mean = y_tensor.mean(dim=0, keepdim=True)
-    y_std = y_tensor.std(dim=0, keepdim=True)
-    
+    y_std = torch.clamp(y_tensor.std(dim=0, keepdim=True), min=1e-7)
+
     xz_mean = xz_tensor.mean(dim=0, keepdim=True)
-    xz_std = xz_tensor.std(dim=0, keepdim=True)
+    xz_std = torch.clamp(xz_tensor.std(dim=0, keepdim=True), min=1e-7)
 
-    # Evitar división por cero
-    y_std = torch.clamp(y_std, min=1e-7)
-    xz_std = torch.clamp(xz_std, min=1e-7)
-
-    # 2. Guardar estadísticas para usar en inferencia (Nivel 2 y 3)
+    # 2. Guardar estadísticas para des-normalizar en Nivel 2 y 3
     if save_stats:
         os.makedirs(os.path.dirname(stats_path), exist_ok=True)
         stats = {
@@ -52,14 +52,12 @@ def load_l80_dataset(file_path='data/NHLR_data.mat', t_transient=10.0, dt=4.2e-3
 def get_dataloaders(file_path='data/NHLR_data.mat', batch_size=256, val_split=0.1, dt=4.2e-3):
     full_dataset = load_l80_dataset(file_path=file_path, dt=dt)
 
-    # Split de validación
     val_size = int(len(full_dataset) * val_split)
     train_size = len(full_dataset) - val_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
-    # Crear iteradores
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=2)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     return train_loader, val_loader
 
@@ -67,6 +65,6 @@ def get_dataloaders(file_path='data/NHLR_data.mat', batch_size=256, val_split=0.
 if __name__ == "__main__":
     train_loader, val_loader = get_dataloaders('data/NHLR_data.mat', batch_size=256)
     for y_batch, xz_batch in train_loader:
-        print("y_batch normalizado (media ~0, std ~1):", y_batch.mean().item(), y_batch.std().item())
-        print("xz_batch normalizado (media ~0, std ~1):", xz_batch.mean().item(), xz_batch.std().item())
+        print("y_batch shape:", y_batch.shape, "| media:", y_batch.mean().item(), "| std:", y_batch.std().item())
+        print("xz_batch shape:", xz_batch.shape, "| media:", xz_batch.mean().item(), "| std:", xz_batch.std().item())
         break

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 
-def run_level2_scatter_validation(file_path='data/NHLR_data.mat', stats_path='checkpoints/norm_stats.pt', num_samples=50000, skip_transient=10000):
+def run_level2_scatter_validation(file_path='data/NHLR_data.mat', stats_path='checkpoints/norm_stats.pt', num_samples=200000, skip_transient=4000000):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # 1. Cargar Estadísticas de Normalización
@@ -40,27 +40,15 @@ def run_level2_scatter_validation(file_path='data/NHLR_data.mat', stats_path='ch
     Y_cpu = Y_raw.cpu()
 
     # --- GRAFICACIÓN SCATTER (Espacio de Fases) ---
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-    
-    # 1. Relación Y1 vs X1
-    axes[0].plot(X_true[:, 0].numpy(), color='black', alpha=0.25, label='Real X1')
-    axes[0].plot(hat_x[:, 0].numpy(), color='red', alpha=0.25, label='Generated X1')
-    axes[0].set_xlabel('t (time)')
-    axes[0].set_ylabel('X1')
-    #axes[0].set_title('Manifold Condicional: X1 en función de Y1')
-    axes[0].legend()
-    axes[0].grid(True)
-    
-    # 2. Relación Y1 vs Z1
-    axes[1].plot(Z_true[:, 0].numpy(), color='black', alpha=0.25, label='Real Z1')
-    axes[1].plot(hat_z[:, 0].numpy(), color='red', alpha=0.25, label='Generated Z1')
-    axes[1].set_xlabel('t (time)')
-    axes[1].set_ylabel('Z1')
-    #axes[1].set_title('Manifold Condicional: Z1 en función de Y1')
-    axes[1].legend()
-    axes[1].grid(True)
-    
-    plt.suptitle('Open Loop Validation : Real Fast variables vs Approximated via CFM')
+    fig, axes = plt.subplots(figsize=(14, 12))
+    axes.plot(hat_z[:, 0].numpy(), hat_x[:, 0].numpy(), color='red', alpha=0.25, label='Generated CFM')
+    axes.plot(Z_true[:, 0].numpy(), X_true[:, 0].numpy(), color='black', label='Real')
+    axes.set_xlabel('Z1')
+    axes.set_ylabel('X1')
+    axes.set_title('Conditional Manifold: X1 vs Z1')
+    axes.legend()
+    axes.grid(True, linestyle='--', alpha=0.7)
+
     plt.tight_layout()
     plt.show()
 
