@@ -33,18 +33,22 @@ def run_level3_simulation(n_ensemble=50, n_steps=5000, dt=4.2e-3, skip_transient
 
     print(f"[Nivel 3 PyTorch] Integrando ensemble online desde el paso {skip_transient} (t = {skip_transient * dt:.2f})...")
     
-    # Frecuencia de actualización de las variables rápidas (decorrelación)
-    update_every = 5  
+    # Cargar modelo y estadísticas de normalización
+    stats = torch.load('checkpoints/norm_stats.pt', map_location=device)
     
     with torch.no_grad():
         for step in range(1, n_steps):
-            # Muestrear el cierre generativo solo cada K pasos
-            if (step - 1) % update_every == 0:
-                hat_x, hat_z = cfm.sample(y_ensemble, steps=50)
-                hat_x = torch.clamp(hat_x, -2.0, 2.0)
-                hat_z = torch.clamp(hat_z, -5.0, 5.0)
+            # 1. Normalizar Y antes de pasar a la red
+            y_norm = (y_ensemble - stats['y_mean'].to(device)) / stats['y_std'].to(device)
     
-            # Integrar Y en la física usando las variables rápidas actuales
+            # 2. Generar muestras normalizadas desde el CFM
+            hat_x_norm, hat_z_norm = cfm.sample(y_norm, steps=30)
+    
+            # 3. Des-normalizar a espacio físico real
+            hat_x = hat_x_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
+            hat_z = hat_z_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
+    
+            # 4. Integrar en RK4 físico
             y_ensemble = rk4_step_y(y_ensemble, hat_x, hat_z, dt=dt)
             history[step] = y_ensemble
             
