@@ -26,7 +26,7 @@ def run_level2_scatter_validation(file_path='data/NHLR_data.mat', stats_path='ch
 
     # 3. Cargar Modelo y Generar Muestras Normalizadas
     model = ConditionalVelocityField().to(device)
-    model.load_state_dict(torch.load('checkpoints/cfm_l80_best.pt', map_location=device, weights_only=True))
+    model.load_state_dict(torch.load('checkpoints/cfm_l80_nhlr.pt', map_location=device, weights_only=True))
     cfm = ConditionalFlowMatcher(model)
     model.eval()
 

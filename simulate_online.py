@@ -5,7 +5,7 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run_level3_validation_xyz(n_ensemble=50, n_steps=10000, dt=4.2e-3, skip_transient=4000000):
+def run_level3_validation_xyz(n_ensemble=50, n_steps=50000, dt=4.2e-3, skip_transient=4000000):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     raw_data = scipy.io.loadmat('data/NHLR_data.mat')['u']
@@ -16,7 +16,7 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=10000, dt=4.2e-3, skip_tran
     Z_true = torch.tensor(raw_data[6:9, skip_transient:skip_transient + n_steps].T, dtype=torch.float32, device=device)
 
     model = ConditionalVelocityField().to(device)
-    model.load_state_dict(torch.load('checkpoints/cfm_l80.pt', map_location=device, weights_only=True))
+    model.load_state_dict(torch.load('checkpoints/cfm_l80_nhlr.pt', map_location=device, weights_only=True))
     cfm = ConditionalFlowMatcher(model)
     model.eval()
 

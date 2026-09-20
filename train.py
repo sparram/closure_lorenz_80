@@ -33,10 +33,10 @@ def train():
     train_loader, val_loader = get_dataloaders('data/NHLR_data.mat', batch_size=1024)
 
     model = ConditionalVelocityField().to(device)
-    cfm = ConditionalFlowMatcher(model)
+    cfm = ConditionalFlowMatcher(model, lambda_physics=0.1)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    epochs = 25
+    epochs = 3
     best_val_loss = float('inf')
     os.makedirs('checkpoints', exist_ok=True)
 
@@ -70,7 +70,7 @@ def train():
         # Checkpoint parcial: Guardar solo si es el mejor resultado de validacion
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), 'checkpoints/cfm_l80.pt')
+            torch.save(model.state_dict(), 'checkpoints/cfm_l80_nhlr.pt')
             print(f" -> Guardado mejor modelo (Val MSE: {val_loss:.6f})")
 
         # Respaldo por epoca para retomar si la compu se apaga
@@ -80,7 +80,7 @@ def train():
             'optimizer_state': optimizer.state_dict(),
             'val_loss': val_loss
         }
-        torch.save(checkpoint, 'checkpoints/last_checkpoint.pt')
+        torch.save(checkpoint, 'checkpoints/last_checkpoint_nhlr.pt')
 
 if __name__ == '__main__':
     train()
