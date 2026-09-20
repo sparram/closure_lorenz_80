@@ -1,3 +1,4 @@
+import math
 import torch
 import jax.numpy as jnp
 
@@ -7,7 +8,7 @@ v0 = 1.0 / 48.0
 b1 = (a1 - a2 - a3) / 2.0
 b2 = (a2 - a3 - a1) / 2.0
 b3 = (a3 - a1 - a2) / 2.0
-c = jnp.sqrt(b1 * b2 + b2 * b3 + b3 * b1)
+c = math.sqrt(b1 * b2 + b2 * b3 + b3 * b1)
 
 def dYdt(x, y, z):
     """ Ecuación diferencial dy/dt polimórfica para PyTorch y JAX"""
