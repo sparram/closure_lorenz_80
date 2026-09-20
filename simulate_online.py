@@ -8,7 +8,7 @@ from src.physics import rk4_step_y
 def run_level3_simulation(n_ensemble=50, n_steps=5000, dt=4.2e-3, skip_transient=20000):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    raw_data = scipy.io.loadmat('data/NN_training_data.mat')['u']
+    raw_data = scipy.io.loadmat('data/NHLR_data.mat')['u']
     
     # Extraer Y_true omitiendo el periodo transitorio
     Y_true = torch.tensor(

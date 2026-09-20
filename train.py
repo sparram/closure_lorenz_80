@@ -30,7 +30,7 @@ def train():
     torch.set_num_threads(4)
     
     # Subimos batch_size a 1024 para reducir drasticamente el tiempo por epoca
-    train_loader, val_loader = get_dataloaders('data/NN_training_data.mat', batch_size=1024)
+    train_loader, val_loader = get_dataloaders('data/NHLR_data.mat', batch_size=1024)
 
     model = ConditionalVelocityField().to(device)
     cfm = ConditionalFlowMatcher(model)

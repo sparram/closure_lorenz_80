@@ -4,7 +4,7 @@ import scipy.io
 import torch
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
-def load_l80_dataset(file_path='data/NN_training_data.mat', t_transient=10.0, dt=4.2e-3, save_stats=True, stats_path='checkpoints/norm_stats.pt'):
+def load_l80_dataset(file_path='data/NHLR_data.mat', t_transient=10.0, dt=4.2e-3, save_stats=True, stats_path='checkpoints/norm_stats.pt'):
     data = scipy.io.loadmat(file_path)
     U = data['u']  # Dimensión original: (9, nt)
 
@@ -49,7 +49,7 @@ def load_l80_dataset(file_path='data/NN_training_data.mat', t_transient=10.0, dt
     return TensorDataset(y_norm, xz_norm)
 
 
-def get_dataloaders(file_path='data/NN_training_data.mat', batch_size=256, val_split=0.1, dt=4.2e-3):
+def get_dataloaders(file_path='data/NHLR_data.mat', batch_size=256, val_split=0.1, dt=4.2e-3):
     full_dataset = load_l80_dataset(file_path=file_path, dt=dt)
 
     # Split de validación
@@ -65,7 +65,7 @@ def get_dataloaders(file_path='data/NN_training_data.mat', batch_size=256, val_s
 
 
 if __name__ == "__main__":
-    train_loader, val_loader = get_dataloaders('data/NN_training_data.mat', batch_size=256)
+    train_loader, val_loader = get_dataloaders('data/NHLR_data.mat', batch_size=256)
     for y_batch, xz_batch in train_loader:
         print("y_batch normalizado (media ~0, std ~1):", y_batch.mean().item(), y_batch.std().item())
         print("xz_batch normalizado (media ~0, std ~1):", xz_batch.mean().item(), xz_batch.std().item())

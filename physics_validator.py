@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from src.physics import rk4_step_y
 
-def run_level1_validation(file_path='data/NN_training_data.mat', n_steps=50000, dt=4.2e-3):
+def run_level1_validation(file_path='data/NHLR_data.mat', n_steps=50000, dt=4.2e-3):
     raw_data = scipy.io.loadmat(file_path)['u']
     
     # Conversión directa a arreglos de JAX

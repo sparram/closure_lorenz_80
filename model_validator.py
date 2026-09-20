@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 
-def run_level2_scatter_validation(file_path='data/NN_training_data.mat', num_samples=10000, skip_transient=10000):
+def run_level2_scatter_validation(file_path='data/NHLR_data.mat', num_samples=10000, skip_transient=10000):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     raw_data = scipy.io.loadmat(file_path)['u']
