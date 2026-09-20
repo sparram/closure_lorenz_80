@@ -3,7 +3,7 @@ import scipy.io
 import torch
 from torch.utils.data import TensorDataset, DataLoader, random_split
 
-def load_l80_dataset(file_path='data/NN_training_data.mat', t_transient=10.0, dt=4.2e-3):
+def load_l80_dataset(file_path='data/NHLR_data.mat', t_transient=10.0, dt=4.2e-3):
     data = scipy.io.loadmat(file_path)
     U = data['u']  # Dimensión original: (9, nt)
 
