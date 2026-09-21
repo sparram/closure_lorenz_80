@@ -33,7 +33,7 @@ def train():
     train_loader, val_loader = get_dataloaders('data/NN_training_data.mat', batch_size=1024)
 
     model = ConditionalVelocityField().to(device)
-    cfm = ConditionalFlowMatcher(model, lambda_physics=1.0)
+    cfm = ConditionalFlowMatcher(model, lambda_physics=0.1)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     epochs = 3
