@@ -5,7 +5,7 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run_level3_validation_xyz(n_ensemble=50, n_steps=50000, dt=4.2e-3, skip_transient=4000000):
+def run_level3_validation_xyz(n_ensemble=50, n_steps=5000, dt=4.2e-3, skip_transient=4000000):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     raw_data = scipy.io.loadmat('data/NHLR_data.mat')['u']
@@ -53,46 +53,53 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=50000, dt=4.2e-3, skip_tran
             if step % 500 == 0:
                 print(f"  Paso {step}/{n_steps} completado.")
 
-    # Procesar métricas para graficar
+    # --- Process metrics for plotting ---
     t_axis = (torch.arange(n_steps) * dt).cpu().numpy()
     
+    # Mean and Standard Deviation for Y
     mean_y = history_y.mean(dim=1).cpu().numpy()
     std_y = history_y.std(dim=1).cpu().numpy()
     y_true_np = Y_true.cpu().numpy()
 
+    # Mean and Standard Deviation for X (ADDED!)
     mean_x = history_x.mean(dim=1).cpu().numpy()
+    std_x = history_x.std(dim=1).cpu().numpy() # <-- NEW
     x_true_np = X_true.cpu().numpy()
 
+    # Mean and Standard Deviation for Z (ADDED!)
     mean_z = history_z.mean(dim=1).cpu().numpy()
+    std_z = history_z.std(dim=1).cpu().numpy() # <-- NEW
     z_true_np = Z_true.cpu().numpy()
 
-    # --- GRAFICACIÓN MULTIPANEL (X, Y, Z) ---
+    # --- MULTIPANEL PLOTTING (X, Y, Z) WITH CONFIDENCE BANDS ---
     fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
 
-    # 1. Componente Y1
+    # 1. Component Y1
     axes[0].plot(t_axis, y_true_np[:, 0], 'k-', label='Real Y1', alpha=0.8)
     axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean Y1')
     axes[0].fill_between(t_axis, mean_y[:, 0] - 2 * std_y[:, 0], mean_y[:, 0] + 2 * std_y[:, 0], color='r', alpha=0.2)
-    axes[0].set_ylabel('Y1 (Lento)')
+    axes[0].set_ylabel('Y1 (Slow)')
     axes[0].legend(loc='upper right')
     axes[0].grid(True)
 
-    # 2. Componente X1 (Predicción vs Real)
+    # 2. Component X1 (Prediction vs Real + Confidence band)
     axes[1].plot(t_axis, x_true_np[:, 0], 'k-', label='Real X1', alpha=0.8)
-    axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='CFM Pred X1')
-    axes[1].set_ylabel('X1 (Rápido)')
+    axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean X1')
+    axes[1].fill_between(t_axis, mean_x[:, 0] - 2 * std_x[:, 0], mean_x[:, 0] + 2 * std_x[:, 0], color='b', alpha=0.2) # <-- NEW
+    axes[1].set_ylabel('X1 (Fast)')
     axes[1].legend(loc='upper right')
     axes[1].grid(True)
 
-    # 3. Componente Z1 (Predicción vs Real)
+    # 3. Component Z1 (Prediction vs Real + Confidence band)
     axes[2].plot(t_axis, z_true_np[:, 0], 'k-', label='Real Z1', alpha=0.8)
-    axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='CFM Pred Z1')
-    axes[2].set_xlabel('Tiempo físico (t)')
-    axes[2].set_ylabel('Z1 (Rápido)')
+    axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean Z1')
+    axes[2].fill_between(t_axis, mean_z[:, 0] - 2 * std_z[:, 0], mean_z[:, 0] + 2 * std_z[:, 0], color='g', alpha=0.2) # <-- NEW
+    axes[2].set_xlabel('Physical time (t)')
+    axes[2].set_ylabel('Z1 (Fast)')
     axes[2].legend(loc='upper right')
     axes[2].grid(True)
 
-    plt.suptitle('Validación Cruzada de Variables: Y (Lento) junto a X y Z (Rápidos)')
+    plt.suptitle('Closed Loop Validation: Predicted Y (Slow) with X and Z (Fast)')
     plt.tight_layout()
     plt.show()
 
