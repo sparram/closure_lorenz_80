@@ -5,7 +5,7 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run_level3_validation_xyz(n_ensemble=50, n_steps=5000, dt=4.2e-3, skip_transient=4000000):
+def run_level3_validation_xyz(n_ensemble=50, n_steps=200000, dt=4.2e-3, skip_transient=4000000):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     raw_data = scipy.io.loadmat('data/NHLR_data.mat')['u']
@@ -101,6 +101,7 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=5000, dt=4.2e-3, skip_trans
 
     plt.suptitle('Closed Loop Validation: Predicted Y (Slow) with X and Z (Fast)')
     plt.tight_layout()
+    plt.savefig("media/sim_closed_loop.png")
     plt.show()
 
 if __name__ == '__main__':
