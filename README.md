@@ -7,7 +7,7 @@ closure_lorenz_80/
 │   ├── NHLR_data.mat                         # Slow dynamics generated dataset (NO HLR)
 │   └── NN_training_data.mat                  # Original training data (HLR)
 ├── docs/
-├── media/
+├── media/                                    # Folder for generated plots in val/
 ├── notebooks/
 │   ├── l80_model.ipynb                       # Loading NN_training_data and exploring the physics
 │   └── sim_lorenz_80.ipynb                   # Complete Implemnetation of the Lorenz-80 model
