@@ -5,10 +5,10 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run_level3_validation_xyz(n_ensemble=50, n_steps=50000, dt=4.2e-3, skip_transient=3000000):
-    torch.manual_seed(42)
+def run_level3_validation_xyz(n_ensemble=100, n_steps=100000, dt=4.2e-3, skip_transient=3000000):
+    torch.manual_seed(37)
     if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(42)
+        torch.cuda.manual_seed_all(37)
         
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -52,7 +52,7 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=50000, dt=4.2e-3, skip_tran
             # 4. Ahora cfm.sample ve num_samples = 50. 
             # Generará 50 ruidos aleatorios torch.randn(50, 6) diferentes 
             # para la misma condición y_mean.
-            hat_x_norm, hat_z_norm = cfm.sample(y_norm, steps=5)
+            hat_x_norm, hat_z_norm = cfm.sample(y_norm, steps=3)
             
             # Des-normalizar (obtendrás 50 valores distintos de X y Z)
             hat_x = hat_x_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
