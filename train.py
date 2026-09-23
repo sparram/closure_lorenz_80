@@ -70,7 +70,7 @@ def train():
         # Checkpoint parcial: Guardar solo si es el mejor resultado de validacion
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), 'checkpoints/cfm_l80_hlr.pt')
+            torch.save(model.state_dict(), 'checkpoints/cfm_l80_hlf.pt')
             print(f" -> Guardado mejor modelo (Val MSE: {val_loss:.6f})")
 
         # Respaldo por epoca para retomar si la compu se apaga
