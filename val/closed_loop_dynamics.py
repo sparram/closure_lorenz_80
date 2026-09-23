@@ -5,7 +5,11 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run_level3_validation_xyz(n_ensemble=50, n_steps=200000, dt=4.2e-3, skip_transient=4000000):
+def run_level3_validation_xyz(n_ensemble=50, n_steps=50000, dt=4.2e-3, skip_transient=3000000):
+    torch.manual_seed(42)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(42)
+        
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     raw_data = scipy.io.loadmat('data/NHLR_data.mat')['u']
@@ -31,22 +35,34 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=200000, dt=4.2e-3, skip_tra
 
     print(f"[Validación XYZ] Integrando y guardando trayectorias desde el paso {skip_transient}...")
     
-    stats = torch.load('checkpoints/norm_stats.pt', map_location=device)
+    stats = torch.load('checkpoints/norm_stats_nhlr.pt', map_location=device)
     
     with torch.no_grad():
         for step in range(1, n_steps):
-            y_norm = (y_ensemble - stats['y_mean'].to(device)) / stats['y_std'].to(device)
+            # 1. Obtener la media del ensamble actual (forma: 3,) o (1, 3)
+            y_mean = y_ensemble.mean(dim=0)
             
-            # Puedes probar con steps=20 o steps=3 según lo que desees comparar
-            hat_x_norm, hat_z_norm = cfm.sample(y_norm, steps=3)
+            # 2. DUPLICAR el y_mean 50 veces ANTES de llamar al CFM
+            # Esto crea un batch de forma (50, 3) donde todas las filas son el mismo y_mean
+            y_single_repeated = y_mean.unsqueeze(0).repeat(n_ensemble, 1)
             
+            # 3. Normalizar
+            y_norm = (y_single_repeated - stats['y_mean'].to(device)) / stats['y_std'].to(device)
+            
+            # 4. Ahora cfm.sample ve num_samples = 50. 
+            # Generará 50 ruidos aleatorios torch.randn(50, 6) diferentes 
+            # para la misma condición y_mean.
+            hat_x_norm, hat_z_norm = cfm.sample(y_norm, steps=5)
+            
+            # Des-normalizar (obtendrás 50 valores distintos de X y Z)
             hat_x = hat_x_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
             hat_z = hat_z_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
             
-            # Guardar predicciones de este paso
+            # Guardar para las bandas de confianza
             history_x[step] = hat_x
             history_z[step] = hat_z
             
+            # 5. Avanzar la física del ensamble
             y_ensemble = rk4_step_y(y_ensemble, hat_x, hat_z, dt=dt)
             history_y[step] = y_ensemble
             
