@@ -30,7 +30,7 @@ def train():
     torch.set_num_threads(4)
     
     # Subimos batch_size a 1024 para reducir drasticamente el tiempo por epoca
-    train_loader, val_loader = get_dataloaders('data/NHLR_data.mat', batch_size=1024)
+    train_loader, val_loader = get_dataloaders('data/NN_training_data.mat', batch_size=1024)
 
     model = ConditionalVelocityField().to(device)
     cfm = ConditionalFlowMatcher(model)
@@ -70,7 +70,7 @@ def train():
         # Checkpoint parcial: Guardar solo si es el mejor resultado de validacion
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), 'checkpoints/cfm_l80_nhlr.pt')
+            torch.save(model.state_dict(), 'checkpoints/cfm_l80_hlr.pt')
             print(f" -> Guardado mejor modelo (Val MSE: {val_loss:.6f})")
 
         # Respaldo por epoca para retomar si la compu se apaga

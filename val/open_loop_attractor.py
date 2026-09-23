@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 
-def run_level2_scatter_validation(file_path='data/NHLR_data.mat', stats_path='checkpoints/norm_stats.pt', num_samples=200000, skip_transient=4000000):
+def run_level2_scatter_validation(file_path='data/NN_training_data.mat', stats_path='checkpoints/norm_stats.pt', num_samples=2000, skip_transient=4000000):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # 1. Cargar Estadísticas de Normalización
@@ -26,7 +26,7 @@ def run_level2_scatter_validation(file_path='data/NHLR_data.mat', stats_path='ch
 
     # 3. Cargar Modelo y Generar Muestras Normalizadas
     model = ConditionalVelocityField().to(device)
-    model.load_state_dict(torch.load('checkpoints/cfm_l80_nhlr.pt', map_location=device, weights_only=True))
+    model.load_state_dict(torch.load('checkpoints/cfm_l80_hlr.pt', map_location=device, weights_only=True))
     cfm = ConditionalFlowMatcher(model)
     model.eval()
 
