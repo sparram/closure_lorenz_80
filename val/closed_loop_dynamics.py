@@ -7,8 +7,7 @@ from src.physics import rk4_step_y
 
 # M : Ensemble size
 # N : Number of timesteps
-def run_level3_validation_xyz(M=50, N=100000, dt=4.2e-3, Ts=3000000):
-    # Opcional para acelerar CPU: limitar hilos si tienes múltiples núcleos
+def closed_loop_dynamics(M=50, N=100000, dt=4.2e-3, Ts=3000000):
     torch.set_num_threads(4)
     
     torch.manual_seed(37)
@@ -22,7 +21,13 @@ def run_level3_validation_xyz(M=50, N=100000, dt=4.2e-3, Ts=3000000):
 
     model = ConditionalVelocityField().to(device)
     model.load_state_dict(torch.load('checkpoints/cfm_l80_nhlr.pt', map_location=device, weights_only=True))
-    #model = torch.compile(model)
+    try:
+        print("Trying model compilation")
+        model = torch.compile(model)
+        print("Model compiled successfully.")
+    except (AttributeError, RuntimeError, Exception) as e:
+        print(f"The model couldn't be compiled ({e}). We'll use the standard model.")
+        
     cfm = ConditionalFlowMatcher(model)
     model.eval()
 
@@ -68,7 +73,7 @@ def run_level3_validation_xyz(M=50, N=100000, dt=4.2e-3, Ts=3000000):
     pass
     
     # --- GUARDAR TRAYECTORIAS PARA USO FUTURO ---
-    print("Guardando historial de simulación en disco...")
+    print("Saving ensemble data...")
     torch.save({
         'history_x': ens_x.cpu(),
         'history_y': ens_y.cpu(),
@@ -124,4 +129,4 @@ def run_level3_validation_xyz(M=50, N=100000, dt=4.2e-3, Ts=3000000):
     plt.show()
 
 if __name__ == '__main__':
-    run_level3_validation_xyz()
+    closed_loop_dynamics()
