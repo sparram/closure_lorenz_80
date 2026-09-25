@@ -20,41 +20,49 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=100000, dt=4.2e-3, skip_tra
 
     model = ConditionalVelocityField().to(device)
     model.load_state_dict(torch.load('checkpoints/cfm_l80_nhlr.pt', map_location=device, weights_only=True))
+    #model = torch.compile(model)
     cfm = ConditionalFlowMatcher(model)
     model.eval()
 
     y_init = Y_true[0].unsqueeze(0)
-    y_ensemble = y_init.repeat(n_ensemble, 1) + torch.randn(n_ensemble, 3, device=device) * 1e-2
+    # Sample N members of Y (at t=0)
+    Yn = y_init.repeat(n_ensemble, 1) + torch.randn(n_ensemble, 3, device=device) * 1e-2
 
     history_y = torch.zeros(n_steps, n_ensemble, 3, device=device)
     history_x = torch.zeros(n_steps, n_ensemble, 3, device=device)
     history_z = torch.zeros(n_steps, n_ensemble, 3, device=device)
     
-    history_y[0] = y_ensemble
+    history_y[0] = Yn
 
     print(f"[Validación XYZ] Integrando {n_steps} pasos en CPU...")
     stats = torch.load('checkpoints/norm_stats_nhlr.pt', map_location=device)
-    
+
     with torch.no_grad():
         for step in range(1, n_steps):
-            y_mean = y_ensemble.mean(dim=0)
-            y_single_repeated = y_mean.unsqueeze(0).repeat(n_ensemble, 1) + torch.randn(n_ensemble, 3, device=device) * 1e-2
+            y_norm = (Yn - stats['y_mean'].to(device)) / stats['y_std'].to(device)
             
-            y_norm = (y_single_repeated - stats['y_mean'].to(device)) / stats['y_std'].to(device)
-            hat_x_norm, hat_z_norm = cfm.sample(y_norm, steps=3)
+            # Puedes probar con steps=20 o steps=3 según lo que desees comparar
+            xi_norm, zi_norm = cfm.sample(y_norm, steps=5)
             
-            hat_x = hat_x_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
-            hat_z = hat_z_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
+            xi = xi_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
+            zi = zi_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
             
-            history_x[step] = hat_x
-            history_z[step] = hat_z
-            
-            y_ensemble = rk4_step_y(y_ensemble, hat_x, hat_z, dt=dt)
-            history_y[step] = y_ensemble
+            # Guardar predicciones de este paso
+            history_x[step] = xi
+            history_z[step] = zi
+
+            E_xi = xi.mean(dim=0, keepdim=True).expand(n_ensemble, 3)
+            E_zi = zi.mean(dim=0, keepdim=True).expand(n_ensemble, 3)
+        
+            Yn = rk4_step_y(Yn, E_xi, E_zi, dt=dt)
+            history_y[step] = Yn
             
             if step % 2000 == 0:
                 print(f"  Paso {step}/{n_steps} completado.")
 
+    return
+    pass
+    
     # --- GUARDAR TRAYECTORIAS PARA USO FUTURO ---
     print("Guardando historial de simulación en disco...")
     torch.save({
