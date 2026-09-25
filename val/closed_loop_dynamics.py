@@ -68,9 +68,6 @@ def closed_loop_dynamics(M=50, N=100000, dt=4.2e-3, Ts=3000000):
             
             if step % 2000 == 0:
                 print(f"  Paso {step}/{N} completado.")
-
-    return
-    pass
     
     # --- GUARDAR TRAYECTORIAS PARA USO FUTURO ---
     print("Saving ensemble data...")
