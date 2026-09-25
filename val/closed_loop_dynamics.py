@@ -5,18 +5,20 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run_level3_validation_xyz(n_ensemble=50, n_steps=100000, dt=4.2e-3, skip_transient=3000000):
+# M : Ensemble size
+# N : Number of timesteps
+def run_level3_validation_xyz(M=50, N=100000, dt=4.2e-3, Ts=3000000):
     # Opcional para acelerar CPU: limitar hilos si tienes múltiples núcleos
     torch.set_num_threads(4)
     
     torch.manual_seed(37)
-    device = torch.device('cpu') # Forzado a CPU ya que no tienes GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    raw_data = scipy.io.loadmat('data/NHLR_data.mat')['u']
+    data = scipy.io.loadmat('data/NHLR_data.mat')['u']
     
-    X_true = torch.tensor(raw_data[0:3, skip_transient:skip_transient + n_steps].T, dtype=torch.float32, device=device)
-    Y_true = torch.tensor(raw_data[3:6, skip_transient:skip_transient + n_steps].T, dtype=torch.float32, device=device)
-    Z_true = torch.tensor(raw_data[6:9, skip_transient:skip_transient + n_steps].T, dtype=torch.float32, device=device)
+    X_true = torch.tensor(data[0:3, Ts:Ts + N].T, dtype=torch.float32, device=device)
+    Y_true = torch.tensor(data[3:6, Ts:Ts + N].T, dtype=torch.float32, device=device)
+    Z_true = torch.tensor(data[6:9, Ts:Ts + N].T, dtype=torch.float32, device=device)
 
     model = ConditionalVelocityField().to(device)
     model.load_state_dict(torch.load('checkpoints/cfm_l80_nhlr.pt', map_location=device, weights_only=True))
@@ -24,41 +26,43 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=100000, dt=4.2e-3, skip_tra
     cfm = ConditionalFlowMatcher(model)
     model.eval()
 
-    y_init = Y_true[0].unsqueeze(0)
     # Sample N members of Y (at t=0)
-    Yn = y_init.repeat(n_ensemble, 1) + torch.randn(n_ensemble, 3, device=device) * 1e-2
+    y0 = Y_true[0].unsqueeze(0)
+    Yn = y0.repeat(M, 1) + torch.randn(M, 3, device=device) * 1e-2
 
-    history_y = torch.zeros(n_steps, n_ensemble, 3, device=device)
-    history_x = torch.zeros(n_steps, n_ensemble, 3, device=device)
-    history_z = torch.zeros(n_steps, n_ensemble, 3, device=device)
+    # Arrays for the ensembles
+    ens_y = torch.zeros(N, M, 3, device=device)
+    ens_x = torch.zeros(N, M, 3, device=device)
+    ens_z = torch.zeros(N, M, 3, device=device)
     
-    history_y[0] = Yn
+    ens_y[0] = Yn
 
-    print(f"[Validación XYZ] Integrando {n_steps} pasos en CPU...")
+    print(f"[Validación XYZ] Integrando {N} pasos en CPU...")
     stats = torch.load('checkpoints/norm_stats_nhlr.pt', map_location=device)
 
     with torch.no_grad():
-        for step in range(1, n_steps):
+        for step in range(1, N):
+            # X_m, Z_m = Call CFM(Y_n)
             y_norm = (Yn - stats['y_mean'].to(device)) / stats['y_std'].to(device)
-            
-            # Puedes probar con steps=20 o steps=3 según lo que desees comparar
-            xi_norm, zi_norm = cfm.sample(y_norm, steps=5)
-            
+            xi_norm, zi_norm = cfm.sample(y_norm, steps=5)            
             xi = xi_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
             zi = zi_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
-            
-            # Guardar predicciones de este paso
-            history_x[step] = xi
-            history_z[step] = zi
 
-            E_xi = xi.mean(dim=0, keepdim=True).expand(n_ensemble, 3)
-            E_zi = zi.mean(dim=0, keepdim=True).expand(n_ensemble, 3)
-        
+            # Compute E[X_m], E[Z_m] = Xbar, Zbar
+            E_xi = xi.mean(dim=0, keepdim=True).expand(M, 3)
+            E_zi = zi.mean(dim=0, keepdim=True).expand(M, 3)
+
+            # Y(t=t+1) = F[Y(t), Xbar, Zbar]
             Yn = rk4_step_y(Yn, E_xi, E_zi, dt=dt)
-            history_y[step] = Yn
+
+            # Gives us N trajectories of Y, Xbar, Zbar
+            # Save ensemble for the actual timestep
+            ens_x[step] = xi
+            ens_y[step] = Yn
+            ens_z[step] = zi
             
             if step % 2000 == 0:
-                print(f"  Paso {step}/{n_steps} completado.")
+                print(f"  Paso {step}/{N} completado.")
 
     return
     pass
@@ -66,9 +70,9 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=100000, dt=4.2e-3, skip_tra
     # --- GUARDAR TRAYECTORIAS PARA USO FUTURO ---
     print("Guardando historial de simulación en disco...")
     torch.save({
-        'history_x': history_x.cpu(),
-        'history_y': history_y.cpu(),
-        'history_z': history_z.cpu(),
+        'history_x': ens_x.cpu(),
+        'history_y': ens_y.cpu(),
+        'history_z': ens_z.cpu(),
         'X_true': X_true.cpu(),
         'Y_true': Y_true.cpu(),
         'Z_true': Z_true.cpu(),
@@ -76,17 +80,17 @@ def run_level3_validation_xyz(n_ensemble=50, n_steps=100000, dt=4.2e-3, skip_tra
     }, 'checkpoints/simulation_history_100k.pt')
 
     # --- Process metrics for plotting ---
-    t_axis = (torch.arange(n_steps) * dt).cpu().numpy()
-    mean_y = history_y.mean(dim=1).cpu().numpy()
-    std_y = history_y.std(dim=1).cpu().numpy()
+    t_axis = (torch.arange(N) * dt).cpu().numpy()
+    mean_y = ens_y.mean(dim=1).cpu().numpy()
+    std_y = ens_y.std(dim=1).cpu().numpy()
     y_true_np = Y_true.cpu().numpy()
 
-    mean_x = history_x.mean(dim=1).cpu().numpy()
-    std_x = history_x.std(dim=1).cpu().numpy()
+    mean_x = ens_x.mean(dim=1).cpu().numpy()
+    std_x = ens_x.std(dim=1).cpu().numpy()
     x_true_np = X_true.cpu().numpy()
 
-    mean_z = history_z.mean(dim=1).cpu().numpy()
-    std_z = history_z.std(dim=1).cpu().numpy()
+    mean_z = ens_z.mean(dim=1).cpu().numpy()
+    std_z = ens_z.std(dim=1).cpu().numpy()
     z_true_np = Z_true.cpu().numpy()
 
     # --- MULTIPANEL PLOTTING ---
