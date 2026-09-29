@@ -7,7 +7,7 @@ from src.physics import rk4_step_y
 
 # M : Ensemble size
 # N : Number of timesteps
-def closed_loop_dynamics(M=50, N=100000, dt=4.2e-3, Ts=3000000):
+def closed_loop_dynamics(M=100, N=5000, dt=8.4e-2, Ts=3000000):
     torch.set_num_threads(4)
     
     torch.manual_seed(37)
@@ -36,11 +36,11 @@ def closed_loop_dynamics(M=50, N=100000, dt=4.2e-3, Ts=3000000):
     Yn = y0.repeat(M, 1) + torch.randn(M, 3, device=device) * 1e-2
 
     # Arrays for the ensembles
-    ens_y = torch.zeros(N, M, 3, device=device)
-    ens_x = torch.zeros(N, M, 3, device=device)
-    ens_z = torch.zeros(N, M, 3, device=device)
+    ens_y = torch.zeros(N, M, 3, dtype=torch.float16, device=device)
+    ens_x = torch.zeros(N, M, 3, dtype=torch.float16, device=device)
+    ens_z = torch.zeros(N, M, 3, dtype=torch.float16, device=device)
     
-    ens_y[0] = Yn
+    ens_y[0] = Yn.to(torch.float16)
 
     print(f"[Validación XYZ] Integrando {N} pasos en CPU...")
     stats = torch.load('checkpoints/norm_stats_nhlr.pt', map_location=device)
@@ -62,9 +62,9 @@ def closed_loop_dynamics(M=50, N=100000, dt=4.2e-3, Ts=3000000):
 
             # Gives us N trajectories of Y, Xbar, Zbar
             # Save ensemble for the actual timestep
-            ens_x[step] = xi
-            ens_y[step] = Yn
-            ens_z[step] = zi
+            ens_x[step] = xi.to(torch.float16)
+            ens_y[step] = Yn.to(torch.float16)
+            ens_z[step] = zi.to(torch.float16)
             
             if step % 2000 == 0:
                 print(f"  Paso {step}/{N} completado.")
@@ -75,9 +75,9 @@ def closed_loop_dynamics(M=50, N=100000, dt=4.2e-3, Ts=3000000):
         'history_x': ens_x.cpu(),
         'history_y': ens_y.cpu(),
         'history_z': ens_z.cpu(),
-        'X_true': X_true.cpu(),
-        'Y_true': Y_true.cpu(),
-        'Z_true': Z_true.cpu(),
+        'X_true': X_true.cpu().to(torch.float16),
+        'Y_true': Y_true.cpu().to(torch.float16),
+        'Z_true': Z_true.cpu().to(torch.float16),
         'dt': dt
     }, 'checkpoints/simulation_history_100k.pt')
 

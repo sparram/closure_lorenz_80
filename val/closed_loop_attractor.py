@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 def plot_attractor_2d_projections():
     print("Loading simulation history...")
     data = torch.load('checkpoints/simulation_history_100k.pt', map_location='cpu')
+
+    print(data['history_y'].numpy().shape)
     
     history_y = data['history_y'].numpy()  # Shape: [n_steps, n_ensemble, 3]
     Y_true = data['Y_true'].numpy()        # Shape: [n_steps, 3]
