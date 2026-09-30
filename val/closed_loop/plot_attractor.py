@@ -1,7 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 
-def plot_attractor_2d_projections():
+def plot_attractor():
     print("Loading simulation history...")
     data = torch.load('checkpoints/simulation_history_100k.pt', map_location='cpu')
     
@@ -33,11 +33,11 @@ def plot_attractor_2d_projections():
         ax.legend(loc='upper right')
         ax.grid(True)
         
-    plt.suptitle('Attractor Comparison in 2D Projections', fontsize=14)
+    plt.suptitle('Closed Loop : Attractor Comparison', fontsize=14)
     plt.tight_layout()
-    plt.savefig('media/closed_loop_attractor_2d.png', dpi=300)
-    print("Plots saved to media/closed_loop_attractor_2d.png!")
+    plt.savefig('media/closed_loop_attractor.png', dpi=300)
+    print("Plots saved to media/closed_loop_attractor.png!")
     plt.show()
 
 if __name__ == '__main__':
-    plot_attractor_2d_projections()
+    plot_attractor()
