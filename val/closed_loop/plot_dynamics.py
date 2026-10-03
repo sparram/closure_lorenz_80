@@ -7,7 +7,7 @@ from src.physics import rk4_step_y
 
 # M : Ensemble size
 # N : Number of timesteps
-def plot_dynamics(M=100, N=20000, dt=4.2e-2, Ts=3000000):
+def plot_dynamics(M=100, N=200000, dt=4.2e-2, Ts=3000000):
 
     print("Loading simulation history...")
     data = torch.load('checkpoints/simulation_history_100k.pt', map_location='cpu')

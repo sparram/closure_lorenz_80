@@ -7,7 +7,7 @@ from src.physics import rk4_step_y
 
 # M : Ensemble size
 # N : Number of timesteps
-def run(M=100, N=20000, dt=4.2e-2, Ts=3000000):
+def run(M=100, N=200000, dt=4.2e-2, Ts=3000000):
     torch.set_num_threads(4)
     
     torch.manual_seed(37)
