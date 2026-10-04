@@ -7,7 +7,7 @@ from src.physics import rk4_step_y
 
 # M : Ensemble size
 # N : Number of timesteps
-def run(M=100, N=20000, dt=4.2e-2, Ts=3000000):
+def run(M=100, N=10000, dt=4.2e-2, Ts=3000000):
     torch.set_num_threads(4)
     
     torch.manual_seed(37)
@@ -22,7 +22,7 @@ def run(M=100, N=20000, dt=4.2e-2, Ts=3000000):
     Z_true = S[:, 6:9]
 
     model = ConditionalVelocityField().to(device)
-    model.load_state_dict(torch.load('checkpoints/cfm_l80_hlr.pt', map_location=device, weights_only=True))
+    model.load_state_dict(torch.load('checkpoints/cfm_l80_hlf.pt', map_location=device, weights_only=True))
     try:
         print("Trying model compilation")
         model = torch.compile(model)

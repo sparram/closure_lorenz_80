@@ -7,7 +7,7 @@ from src.physics import rk4_step_y
 
 # M : Ensemble size
 # N : Number of timesteps
-def plot_dynamics(M=100, N=20000, dt=4.2e-2, Ts=3000000):
+def plot_dynamics(M=100, N=10000, dt=4.2e-3, Ts=3000000):
 
     print("Loading simulation history...")
     data = torch.load('checkpoints/simulation_history_100k.pt', map_location='cpu')
@@ -39,6 +39,7 @@ def plot_dynamics(M=100, N=20000, dt=4.2e-2, Ts=3000000):
     axes[0].plot(t_axis, y_true_np[:, 0], 'k-', label='Real Y1', alpha=0.8)
     axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean Y1')
     axes[0].fill_between(t_axis, mean_y[:, 0] - 2 * std_y[:, 0], mean_y[:, 0] + 2 * std_y[:, 0], color='r', alpha=0.2)
+    axes[0].set_ylim(-1.2, 1.2)
     axes[0].set_ylabel('Y1 (Slow)')
     axes[0].legend(loc='upper right')
     axes[0].grid(True)
@@ -46,6 +47,7 @@ def plot_dynamics(M=100, N=20000, dt=4.2e-2, Ts=3000000):
     axes[1].plot(t_axis, x_true_np[:, 0], 'k-', label='Real X1', alpha=0.8)
     axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean X1')
     axes[1].fill_between(t_axis, mean_x[:, 0] - 2 * std_x[:, 0], mean_x[:, 0] + 2 * std_x[:, 0], color='b', alpha=0.2)
+    axes[1].set_ylim(-0.6, 0.6)
     axes[1].set_ylabel('X1 (Fast)')
     axes[1].legend(loc='upper right')
     axes[1].grid(True)
@@ -53,6 +55,7 @@ def plot_dynamics(M=100, N=20000, dt=4.2e-2, Ts=3000000):
     axes[2].plot(t_axis, z_true_np[:, 0], 'k-', label='Real Z1', alpha=0.8)
     axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean Z1')
     axes[2].fill_between(t_axis, mean_z[:, 0] - 2 * std_z[:, 0], mean_z[:, 0] + 2 * std_z[:, 0], color='g', alpha=0.2)
+    axes[2].set_ylim(-2.0, 2.0)
     axes[2].set_xlabel('Physical time (t)')
     axes[2].set_ylabel('Z1 (Fast)')
     axes[2].legend(loc='upper right')
@@ -60,7 +63,7 @@ def plot_dynamics(M=100, N=20000, dt=4.2e-2, Ts=3000000):
 
     plt.suptitle('Closed Loop Validation: Predicted Y (Slow) with X and Z (Fast)')
     plt.tight_layout()
-    plt.savefig("media/sim_closed_loop.png")
+    plt.savefig("media/closed_loop/dynamics_comparison.png")
     plt.show()
 
 if __name__ == '__main__':
