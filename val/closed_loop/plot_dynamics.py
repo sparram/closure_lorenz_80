@@ -1,69 +1,88 @@
+import os
 import torch
 import scipy.io
 import matplotlib.pyplot as plt
-from src.model import ConditionalVelocityField
-from src.flow_matching import ConditionalFlowMatcher
-from src.physics import rk4_step_y
 
-# M : Ensemble size
-# N : Number of timesteps
-def plot_dynamics(M=100, N=20000, dt=4.2e-3, Ts=3000000):
+def plot_dynamics(
+    checkpoint_path='checkpoints/simulation_history_memory.pt',
+    data_path='data/NN_training_data.mat',
+    Ts=3000000,
+    plot_steps=None  # Permite limitar el número de pasos a graficar (ej. 20000)
+):
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"No se encontró el archivo de simulación: {checkpoint_path}")
 
-    print("Loading simulation history...")
-    data = torch.load('checkpoints/simulation_history_100k.pt', map_location='cpu')
-    
-    ens_x = data['history_x']  # Shape: [n_steps, n_ensemble, 3]
-    ens_y = data['history_y']  # Shape: [n_steps, n_ensemble, 3]
-    ens_z = data['history_z']  # Shape: [n_steps, n_ensemble, 3]
-    X_true = data['X_true'].numpy()    # Shape: [n_steps, 3]
-    Y_true = data['Y_true'].numpy()    # Shape: [n_steps, 3]
-    Z_true = data['Z_true'].numpy()    # Shape: [n_steps, 3]
-    
-    # --- Process metrics for plotting ---
-    t_axis = (torch.arange(N) * dt).cpu().numpy()
-    mean_y = ens_y.mean(dim=1).cpu().numpy()
-    std_y = ens_y.std(dim=1).cpu().numpy()
-    y_true_np = Y_true
+    print(f"Cargando simulación desde: {checkpoint_path}")
+    data = torch.load(checkpoint_path, map_location='cpu')
 
-    mean_x = ens_x.mean(dim=1).cpu().numpy()
-    std_x = ens_x.std(dim=1).cpu().numpy()
-    x_true_np = X_true
+    ens_x = data['history_x']  # Shape: [N, M, 3]
+    ens_y = data['history_y']  # Shape: [N, M, 3]
+    ens_z = data['history_z']  # Shape: [N, M, 3]
+    dt = data.get('dt', 4.2e-3)
 
-    mean_z = ens_z.mean(dim=1).cpu().numpy()
-    std_z = ens_z.std(dim=1).cpu().numpy()
-    z_true_np = Z_true
+    N_sim, M, _ = ens_y.shape
+    N = plot_steps if (plot_steps and plot_steps < N_sim) else N_sim
 
-    # --- MULTIPANEL PLOTTING ---
+    # Recortar al número de pasos solicitados
+    ens_x = ens_x[:N]
+    ens_y = ens_y[:N]
+    ens_z = ens_z[:N]
+
+    # Cargar datos reales de referencia partiendo del mismo instante Ts
+    if os.path.exists(data_path):
+        raw_mat = scipy.io.loadmat(data_path)['u']
+        X_true = raw_mat[0:3, Ts : Ts + N].T
+        Y_true = raw_mat[3:6, Ts : Ts + N].T
+        Z_true = raw_mat[6:9, Ts : Ts + N].T
+    else:
+        raise FileNotFoundError(f"No se encontró el archivo de datos de referencia: {data_path}")
+
+    # Eje de tiempo físico
+    t_axis = (torch.arange(N) * dt).numpy()
+
+    # Promedio y desviación estándar del ensemble
+    mean_y = ens_y.mean(dim=1).float().numpy()
+    std_y = ens_y.std(dim=1).float().numpy()
+
+    mean_x = ens_x.mean(dim=1).float().numpy()
+    std_x = ens_x.std(dim=1).float().numpy()
+
+    mean_z = ens_z.mean(dim=1).float().numpy()
+    std_z = ens_z.std(dim=1).float().numpy()
+
+    # --- GRAFICACIÓN MULTIPANEL ---
     fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
 
-    axes[0].plot(t_axis, y_true_np[:, 0], 'k-', label='Real Y1', alpha=0.8)
+    # 1. Variable Lenta Y1
+    axes[0].plot(t_axis, Y_true[:, 0], 'k-', label='Real Y1', alpha=0.8)
     axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean Y1')
     axes[0].fill_between(t_axis, mean_y[:, 0] - 2 * std_y[:, 0], mean_y[:, 0] + 2 * std_y[:, 0], color='r', alpha=0.2)
-    axes[0].set_ylim(-1.2, 1.2)
-    axes[0].set_ylabel('Y1 (Slow)')
+    axes[0].set_ylabel('Y1 (Lenta)')
     axes[0].legend(loc='upper right')
-    axes[0].grid(True)
+    axes[0].grid(True, linestyle='--', alpha=0.6)
 
-    axes[1].plot(t_axis, x_true_np[:, 0], 'k-', label='Real X1', alpha=0.8)
+    # 2. Variable Rápida X1
+    axes[1].plot(t_axis, X_true[:, 0], 'k-', label='Real X1', alpha=0.8)
     axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean X1')
     axes[1].fill_between(t_axis, mean_x[:, 0] - 2 * std_x[:, 0], mean_x[:, 0] + 2 * std_x[:, 0], color='b', alpha=0.2)
-    axes[1].set_ylim(-0.6, 0.6)
-    axes[1].set_ylabel('X1 (Fast)')
+    axes[1].set_ylabel('X1 (Rápida)')
     axes[1].legend(loc='upper right')
-    axes[1].grid(True)
+    axes[1].grid(True, linestyle='--', alpha=0.6)
 
-    axes[2].plot(t_axis, z_true_np[:, 0], 'k-', label='Real Z1', alpha=0.8)
+    # 3. Variable Rápida Z1
+    axes[2].plot(t_axis, Z_true[:, 0], 'k-', label='Real Z1', alpha=0.8)
     axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean Z1')
     axes[2].fill_between(t_axis, mean_z[:, 0] - 2 * std_z[:, 0], mean_z[:, 0] + 2 * std_z[:, 0], color='g', alpha=0.2)
-    axes[2].set_ylim(-2.0, 2.0)
-    axes[2].set_xlabel('Physical time (t)')
-    axes[2].set_ylabel('Z1 (Fast)')
+    axes[2].set_xlabel('Tiempo físico (t)')
+    axes[2].set_ylabel('Z1 (Rápida)')
     axes[2].legend(loc='upper right')
-    axes[2].grid(True)
+    axes[2].grid(True, linestyle='--', alpha=0.6)
 
     plt.suptitle('Closed Loop Validation: Predicted Y (Slow) with X and Z (Fast)')
     plt.tight_layout()
-    plt.savefig("media/closed_loop/dynamics_comparison.png")
+
+    os.makedirs('media/closed_loop', exist_ok=True)
+    plt.savefig("media/closed_loop/dynamics_comparison.png", dpi=300)
     plt.show()
 
 if __name__ == '__main__':
