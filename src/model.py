@@ -3,7 +3,6 @@ import torch.nn as nn
 import math
 
 class SinusoidalPosEmb(nn.Module):
-    """ Embedding de frecuencias para el tiempo sintetico tau """
     def __init__(self, dim):
         super().__init__()
         self.dim = dim
@@ -14,20 +13,15 @@ class SinusoidalPosEmb(nn.Module):
         emb = math.log(10000) / (half_dim - 1)
         emb = torch.exp(torch.arange(half_dim, device=device) * -emb)
         emb = x[:, None] * emb[None, :]
-        emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
-        return emb
+        return torch.cat((emb.sin(), emb.cos()), dim=-1)
 
 
 class ConditionalVelocityField(nn.Module):
     """
-    Red que aproxima el campo de vectores v_theta(z_tau, tau | y).
-    
-    Entradas:
-        z_tau: Tensor (batch_size, 6) -> Estado en el tiempo sintético
-        tau:   Tensor (batch_size, 1) o (batch_size,) -> Tiempo sintético en [0, 1]
-        y:     Tensor (batch_size, 3) -> Estado de la variable lenta
+    Red para v_theta(z_tau, tau | y_history).
+    dim_cond por defecto: 300 (100 puntos históricos x 3 componentes de Y)
     """
-    def __init__(self, dim_fast=6, dim_cond=3, time_emb_dim=16, hidden_dim=128):
+    def __init__(self, dim_fast=6, dim_cond=300, time_emb_dim=16, hidden_dim=256):
         super().__init__()
         
         self.time_mlp = nn.Sequential(
@@ -36,7 +30,7 @@ class ConditionalVelocityField(nn.Module):
             nn.SiLU()
         )
         
-        # Dimension total de entrada: 6 (z_tau) + 16 (tau embedded) + 3 (y) = 25
+        # Dimension de entrada: 6 (z_tau) + 16 (tau) + dim_cond (historia de Y)
         in_dim = dim_fast + time_emb_dim + dim_cond
 
         self.net = nn.Sequential(
@@ -49,24 +43,10 @@ class ConditionalVelocityField(nn.Module):
             nn.Linear(hidden_dim, dim_fast)
         )
 
-    def forward(self, z_tau, tau, y):
+    def forward(self, z_tau, tau, y_cond):
         if tau.dim() == 1:
             tau = tau.unsqueeze(-1)
             
         t_emb = self.time_mlp(tau.squeeze(-1))
-        
-        # Concatenacion: [z_tau, embedding(tau), y]
-        x_in = torch.cat([z_tau, t_emb, y], dim=-1)
+        x_in = torch.cat([z_tau, t_emb, y_cond], dim=-1)
         return self.net(x_in)
-
-
-# Test unitario de dimensiones
-if __name__ == "__main__":
-    batch_size = 32
-    z_tau = torch.randn(batch_size, 6)
-    tau = torch.rand(batch_size, 1)
-    y = torch.randn(batch_size, 3)
-
-    model = ConditionalVelocityField()
-    out = model(z_tau, tau, y)
-    print("Shape de salida:", out.shape)  # Debe ser torch.Size([32, 6])
