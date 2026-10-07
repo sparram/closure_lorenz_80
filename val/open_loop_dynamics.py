@@ -9,7 +9,7 @@ def run_level2_scatter_validation(
     file_path='data/NN_training_data.mat', 
     stats_path='checkpoints/norm_stats_hlf.pt', 
     model_path='checkpoints/cfm_model_hlf.pt',
-    num_samples=100000, 
+    num_samples=20000, 
     skip_transient=3000000,
     batch_size=5000,
     steps_cfm=20
@@ -101,4 +101,11 @@ def run_level2_scatter_validation(
     plt.show()
 
 if __name__ == '__main__':
-    run_level2_scatter_validation()
+    if __name__ == '__main__':
+    stats = torch.load('checkpoints/norm_stats.pt')
+    test_start_idx = stats['split_idx']  # Inicio oficial del test set out-of-sample (~4,800,000)
+    
+    run_level2_scatter_validation(
+        skip_transient=test_start_idx + 100000, # Un punto dentro de la región de Test
+        num_samples=20000
+    )

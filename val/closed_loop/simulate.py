@@ -74,4 +74,8 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
     }, 'checkpoints/simulation_history_memory.pt')
 
 if __name__ == '__main__':
-    run()
+    stats = torch.load('checkpoints/norm_stats.pt')
+    test_start_idx = stats['split_idx']
+    
+    # Simular en el conjunto de prueba que el modelo NUNCA vio en entrenamiento
+    run(N=20000, dt=4.2e-3, Ts=test_start_idx + 100000)
