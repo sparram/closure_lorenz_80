@@ -12,7 +12,7 @@ def run_level2_scatter_validation(
     num_samples=20000, 
     skip_transient=3000000,
     batch_size=5000,
-    steps_cfm=20
+    steps_cfm=5
 ):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"[Validación Open Loop] Usando dispositivo: {device}")
@@ -73,27 +73,30 @@ def run_level2_scatter_validation(
     hat_x = hat_x_norm * x_std + x_mean
     hat_z = hat_z_norm * z_std + z_mean
 
-    # --- GRAFICACIÓN (Primeros 2,000 pasos para visualización clara) ---
-    plot_len = min(100000, num_samples)
+    # --- GRAFICACIÓN EN LAZO ABIERTO (OUT-OF-SAMPLE) ---
+    # Mostramos los primeros 2,000 pasos contiguos para observar la alta frecuencia limpia
+    plot_len = min(50000, num_samples)
+    t_axis = (torch.arange(skip_transient, skip_transient + plot_len) * stats['dt']).numpy()
+
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
-    # 1. Relación X1
-    axes[0].plot(X_true[:plot_len, 0].numpy()[::100], color='black', alpha=0.6, linewidth=1.2, label='Real X1')
-    axes[0].plot(hat_x[:plot_len, 0].numpy()[::100], color='red', alpha=0.6, linewidth=1.0, label='Generated X1')
-    axes[0].set_xlabel('Pasos de tiempo')
+    # 1. Variable Rápida X1
+    axes[0].plot(t_axis, X_true[:plot_len, 0].numpy(), color='black', alpha=0.7, linewidth=1.2, label='Real X1')
+    axes[0].plot(t_axis, hat_x[:plot_len, 0].numpy(), color='red', alpha=0.6, linewidth=1.0, label='Generated X1 (CFM)')
+    axes[0].set_xlabel('Physical Time (t)')
     axes[0].set_ylabel('X1')
-    axes[0].legend()
+    axes[0].legend(loc='upper right')
     axes[0].grid(True, linestyle='--', alpha=0.5)
 
-    # 2. Relación Z1
-    axes[1].plot(Z_true[:plot_len, 0].numpy()[::100], color='black', alpha=0.6, linewidth=1.2, label='Real Z1')
-    axes[1].plot(hat_z[:plot_len, 0].numpy()[::100], color='red', alpha=0.6, linewidth=1.0, label='Generated Z1')
-    axes[1].set_xlabel('Pasos de tiempo')
+    # 2. Variable Rápida Z1
+    axes[1].plot(t_axis, Z_true[:plot_len, 0].numpy(), color='black', alpha=0.7, linewidth=1.2, label='Real Z1')
+    axes[1].plot(t_axis, hat_z[:plot_len, 0].numpy(), color='red', alpha=0.6, linewidth=1.0, label='Generated Z1 (CFM)')
+    axes[1].set_xlabel('Physical Time (t)')
     axes[1].set_ylabel('Z1')
-    axes[1].legend()
+    axes[1].legend(loc='upper right')
     axes[1].grid(True, linestyle='--', alpha=0.5)
 
-    plt.suptitle('Open Loop Validation: Real Fast variables vs Approximated via CFM (History Condition)')
+    plt.suptitle('Open Loop Validation (Out-of-Sample Test Set): Fast Variables Reconstruction', fontsize=13)
     plt.tight_layout()
     
     os.makedirs('media', exist_ok=True)
@@ -101,11 +104,10 @@ def run_level2_scatter_validation(
     plt.show()
 
 if __name__ == '__main__':
-    if __name__ == '__main__':
-    stats = torch.load('checkpoints/norm_stats.pt')
+    stats = torch.load('checkpoints/norm_stats_hlf.pt')
     test_start_idx = stats['split_idx']  # Inicio oficial del test set out-of-sample (~4,800,000)
     
     run_level2_scatter_validation(
         skip_transient=test_start_idx + 100000, # Un punto dentro de la región de Test
-        num_samples=20000
+        num_samples=200000
     )
