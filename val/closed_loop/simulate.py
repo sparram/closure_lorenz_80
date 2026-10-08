@@ -45,7 +45,7 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
             y_cond_input = history_buffer[:, ::stride, :].reshape(M, -1)
 
             # 3. Muestrear CFM (X, Z) con el historial de 300 dims
-            xi_norm, zi_norm = cfm.sample(y_cond_input, steps=5)
+            xi_norm, zi_norm = cfm.sample(y_cond_input, steps=10)
 
             xi = xi_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
             zi = zi_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
@@ -59,14 +59,15 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
 
             # 6. Actualizar el buffer: desplazar y agregar el nuevo Yn
             yn_norm = (Yn - stats['y_mean'].to(device)) / stats['y_std'].to(device)
-            history_buffer = torch.cat([history_buffer[:, 1:, :], yn_norm.unsqueeze(1)], dim=1)
+            history_buffer[:, :-1, :] = history_buffer[:, 1:, :].clone()
+            history_buffer[:, -1, :] = yn_norm  
 
             # Guardar trayectorias
             ens_x[step] = xi.to(torch.float16)
             ens_y[step] = Yn.to(torch.float16)
             ens_z[step] = zi.to(torch.float16)
 
-            if step % 100 == 0:
+            if step % 500 == 0:
                 print(f"PROGRESS: {step} / {N} - {100 * step / N} %")
 
     torch.save({
@@ -81,4 +82,4 @@ if __name__ == '__main__':
     test_start_idx = stats['split_idx']
     
     # Simular en el conjunto de prueba que el modelo NUNCA vio en entrenamiento
-    run(N=20000, dt=4.2e-3, Ts=test_start_idx + 100000)
+    run(M=50, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000)
