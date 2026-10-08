@@ -66,6 +66,9 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
             ens_y[step] = Yn.to(torch.float16)
             ens_z[step] = zi.to(torch.float16)
 
+            if step % 100 == 0:
+                print(f"PROGRESS: {step} / {N} - {100 * step / N} %")
+
     torch.save({
         'history_x': ens_x.cpu(),
         'history_y': ens_y.cpu(),

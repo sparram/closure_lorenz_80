@@ -74,4 +74,6 @@ def plot_attractor_2d_projections(
     plt.show()
 
 if __name__ == '__main__':
-    plot_attractor_2d_projections()
+    stats = torch.load('checkpoints/norm_stats_hlf.pt')
+    test_start_idx = stats['split_idx']
+    plot_attractor_2d_projections(Ts=test_start_idx + 100000)

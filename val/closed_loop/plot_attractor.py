@@ -66,4 +66,7 @@ def plot_attractor(
     plt.show()
 
 if __name__ == '__main__':
-    plot_attractor()
+    stats = torch.load('checkpoints/norm_stats_hlf.pt')
+    test_start_idx = stats['split_idx']
+    #run(N=20000, dt=4.2e-3, Ts=test_start_idx + 100000)
+    plot_attractor(Ts=test_start_idx + 100000)
