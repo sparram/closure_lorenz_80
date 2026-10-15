@@ -1,6 +1,6 @@
 import torch
 import scipy.io
-from src.model import ConditionalVelocityField
+from src.model import FNOConditionalVelocityField  # <--- Usando el FNO
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
@@ -9,11 +9,10 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
     torch.manual_seed(37)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    stats = torch.load('checkpoints/norm_stats_hlf.pt', map_location=device)
+    stats = torch.load('checkpoints/norm_stats_hlf.pt', map_location=device, weights_only=True)
     history_len = stats['history_len'] # 5000
-    stride = stats['stride']           # 50
-    k_points = stats['k_points']       # 100
-    dim_cond = k_points * 3            # 300
+    stride = stats['stride']            # 50
+    k_points = stats['k_points']        # 100
 
     data = scipy.io.loadmat('data/NN_training_data.mat')['u']
     
@@ -26,10 +25,18 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
 
     # Estado inicial Y0 (último punto de la historia + ruido)
     Yn = (y_hist_norm[-1].unsqueeze(0).repeat(M, 1) * stats['y_std'].to(device)) + stats['y_mean'].to(device)
-    Yn = Yn + torch.randn(M, 3, device=device) * 1e-2
+    Yn = Yn + torch.randn(M, 3, device=device) * 1e-3
 
-    model = ConditionalVelocityField(dim_cond=dim_cond, hidden_dim=256).to(device)
-    model.load_state_dict(torch.load('checkpoints/cfm_model_hlf.pt', map_location=device, weights_only=True))
+    # 2. Inicializar el FNO con los pesos del entrenamiento FNO
+    model = FNOConditionalVelocityField(
+        dim_fast=6, 
+        in_channels=3, 
+        modes=16, 
+        width=64, 
+        time_emb_dim=16
+    ).to(device)
+    
+    model.load_state_dict(torch.load('checkpoints/cfm_fno_model_hlf.pt', map_location=device, weights_only=True))
     cfm = ConditionalFlowMatcher(model)
     model.eval()
 
@@ -37,27 +44,31 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
     ens_x = torch.zeros(N, M, 3, dtype=torch.float16, device=device)
     ens_z = torch.zeros(N, M, 3, dtype=torch.float16, device=device)
 
-    print(f"[Simulación] Integrando {N} pasos con dt = {dt} y memoria de 5000 puntos...")
+    print(f"[Simulación Closed-Loop FNO] Integrando {N} pasos con dt = {dt} y memoria de 5000 puntos...")
 
     with torch.no_grad():
         for step in range(N):
-            # 2. Tomar 1 de cada 50 puntos dentro de los 5,000 pasos y aplanar a (M, 300)
-            y_cond_input = history_buffer[:, ::stride, :].reshape(M, -1)
+            # 3. Preparar la condición con la estructura matricial exacta para el FNO: (M, 3, k_points)
+            # history_buffer tiene forma: (M, 5000, 3) -> Submuestreo por stride -> (M, 100, 3) -> Permutación a (M, 3, 100)
+            subsampled_history = history_buffer[:, ::stride, :]                 # Shape: (M, 100, 3)
+            y_cond_input = subsampled_history.permute(0, 2, 1).contiguous()     # Shape: (M, 3, 100)
 
-            # 3. Muestrear CFM (X, Z) con el historial de 300 dims
+            # 4. Muestrear CFM (X, Z) con la condición estructurada del FNO
             xi_norm, zi_norm = cfm.sample(y_cond_input, steps=10)
 
             xi = xi_norm * stats['x_std'].to(device) + stats['x_mean'].to(device)
             zi = zi_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
 
-            # 4. Promedio del ensemble para acoplamiento RK4
-            E_xi = xi.mean(dim=0, keepdim=True).expand(M, 3)
-            E_zi = zi.mean(dim=0, keepdim=True).expand(M, 3)
+            # 5. Promedio del ensemble para acoplamiento RK4
+            #E_xi = xi.mean(dim=0, keepdim=True).expand(M, 3)
+            #E_zi = zi.mean(dim=0, keepdim=True).expand(M, 3)
 
-            # 5. Integrar Y un paso dt = 4.2e-3
-            Yn = rk4_step_y(Yn, E_xi, E_zi, dt=dt)
-
-            # 6. Actualizar el buffer: desplazar y agregar el nuevo Yn
+            # 6. Integrar Y un paso dt = 4.2e-3
+            #Yn = rk4_step_y(Yn, E_xi, E_zi, dt=dt)
+            # 5 y 6. Integrar Y usando las muestras individuales de cada miembro del CFM
+            Yn = rk4_step_y(Yn, xi, zi, dt=dt)
+            
+            # 7. Actualizar el buffer: desplazar y agregar el nuevo Yn normalizado
             yn_norm = (Yn - stats['y_mean'].to(device)) / stats['y_std'].to(device)
             history_buffer[:, :-1, :] = history_buffer[:, 1:, :].clone()
             history_buffer[:, -1, :] = yn_norm  
@@ -68,18 +79,20 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
             ens_z[step] = zi.to(torch.float16)
 
             if step % 500 == 0:
-                print(f"PROGRESS: {step} / {N} - {100 * step / N} %")
+                print(f"PROGRESS: {step} / {N} - {100 * step / N:.2f} %")
 
+    # Guardar resultados de la simulación a posteriori
     torch.save({
         'history_x': ens_x.cpu(),
         'history_y': ens_y.cpu(),
         'history_z': ens_z.cpu(),
         'dt': dt
-    }, 'checkpoints/simulation_history_memory.pt')
+    }, 'checkpoints/simulation_history_fno_memory.pt')
+    print("✨ Simulación closed-loop con FNO finalizada y guardada con éxito.")
 
 if __name__ == '__main__':
-    stats = torch.load('checkpoints/norm_stats_hlf.pt')
+    stats = torch.load('checkpoints/norm_stats_hlf.pt', weights_only=True)
     test_start_idx = stats['split_idx']
     
-    # Simular en el conjunto de prueba que el modelo NUNCA vio en entrenamiento
-    run(M=50, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000)
+    # Simular en el conjunto de prueba fuera de muestra (out-of-sample)
+    run(M=10, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000)

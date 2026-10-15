@@ -1,0 +1,56 @@
+Entrenando en: cuda | Arquitectura: FNO 1D (Modos: 16, Ancho: 64)
+[load_data] Estadísticas guardadas. Punto de corte Test (split_idx): 4800476
+Epoch 01/25: 100% 4681/4681 [02:00<00:00, 38.73it/s, loss=0.071598]
+ -> Fin Epoch 01 | Train Loss: 0.134566 | Val Loss: 0.064401
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 02/25: 100% 4681/4681 [01:59<00:00, 39.09it/s, loss=0.050771]
+ -> Fin Epoch 02 | Train Loss: 0.061655 | Val Loss: 0.054415
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 03/25: 100% 4681/4681 [02:00<00:00, 38.84it/s, loss=0.036609]
+ -> Fin Epoch 03 | Train Loss: 0.052646 | Val Loss: 0.048244
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 04/25: 100% 4681/4681 [02:00<00:00, 38.95it/s, loss=0.058264]
+ -> Fin Epoch 04 | Train Loss: 0.046998 | Val Loss: 0.046589
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 05/25: 100% 4681/4681 [02:00<00:00, 38.82it/s, loss=0.033758]
+ -> Fin Epoch 05 | Train Loss: 0.043525 | Val Loss: 0.041940
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 06/25: 100% 4681/4681 [02:00<00:00, 38.83it/s, loss=0.053442]
+ -> Fin Epoch 06 | Train Loss: 0.040777 | Val Loss: 0.038966
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 07/25: 100% 4681/4681 [02:00<00:00, 38.99it/s, loss=0.038627]
+ -> Fin Epoch 07 | Train Loss: 0.038855 | Val Loss: 0.036944
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 08/25: 100% 4681/4681 [02:00<00:00, 38.92it/s, loss=0.034407]
+ -> Fin Epoch 08 | Train Loss: 0.037076 | Val Loss: 0.035488
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 09/25: 100% 4681/4681 [01:59<00:00, 39.15it/s, loss=0.027934]
+ -> Fin Epoch 09 | Train Loss: 0.035670 | Val Loss: 0.037071
+Epoch 10/25: 100% 4681/4681 [01:59<00:00, 39.02it/s, loss=0.032112]
+ -> Fin Epoch 10 | Train Loss: 0.034554 | Val Loss: 0.032187
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 11/25: 100% 4681/4681 [01:59<00:00, 39.01it/s, loss=0.024750]
+ -> Fin Epoch 11 | Train Loss: 0.033742 | Val Loss: 0.033301
+Epoch 12/25: 100% 4681/4681 [02:00<00:00, 38.93it/s, loss=0.028684]
+ -> Fin Epoch 12 | Train Loss: 0.032503 | Val Loss: 0.031806
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 13/25: 100% 4681/4681 [01:59<00:00, 39.05it/s, loss=0.032448]
+ -> Fin Epoch 13 | Train Loss: 0.031848 | Val Loss: 0.028438
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 14/25: 100% 4681/4681 [01:59<00:00, 39.07it/s, loss=0.033381]
+ -> Fin Epoch 14 | Train Loss: 0.031131 | Val Loss: 0.029177
+Epoch 15/25: 100% 4681/4681 [01:59<00:00, 39.04it/s, loss=0.031015]
+ -> Fin Epoch 15 | Train Loss: 0.030548 | Val Loss: 0.027927
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 16/25: 100% 4681/4681 [01:59<00:00, 39.15it/s, loss=0.039496]
+ -> Fin Epoch 16 | Train Loss: 0.029843 | Val Loss: 0.028072
+Epoch 17/25: 100% 4681/4681 [01:59<00:00, 39.15it/s, loss=0.032403]
+ -> Fin Epoch 17 | Train Loss: 0.029237 | Val Loss: 0.029959
+Epoch 18/25: 100% 4681/4681 [01:59<00:00, 39.12it/s, loss=0.034442]
+ -> Fin Epoch 18 | Train Loss: 0.028890 | Val Loss: 0.026891
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
+Epoch 19/25: 100% 4681/4681 [01:59<00:00, 39.18it/s, loss=0.032753]
+ -> Fin Epoch 19 | Train Loss: 0.028387 | Val Loss: 0.028433
+Epoch 20/25: 100% 4681/4681 [01:59<00:00, 39.19it/s, loss=0.032097]
+ -> Fin Epoch 20 | Train Loss: 0.027905 | Val Loss: 0.025208
+    ✨ ¡Mejor modelo guardado en checkpoints/cfm_fno_model_hlf.pt!
