@@ -4,7 +4,7 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
+def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-2):
     torch.set_num_threads(4)
     torch.manual_seed(37)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -26,7 +26,7 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
 
     # Estado inicial Y0 (último punto de la historia + ruido)
     Yn = (y_hist_norm[-1].unsqueeze(0).repeat(M, 1) * stats['y_std'].to(device)) + stats['y_mean'].to(device)
-    Yn = Yn + torch.randn(M, 3, device=device) * 1e-2
+    Yn = Yn + torch.randn(M, 3, device=device) * initial_sigma_Y
 
     model = ConditionalVelocityField(dim_cond=dim_cond, hidden_dim=256).to(device)
     model.load_state_dict(torch.load('checkpoints/cfm_model_hlf.pt', map_location=device, weights_only=True))
@@ -51,11 +51,11 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000):
             zi = zi_norm * stats['z_std'].to(device) + stats['z_mean'].to(device)
 
             # 4. Promedio del ensemble para acoplamiento RK4
-            E_xi = xi.mean(dim=0, keepdim=True).expand(M, 3)
-            E_zi = zi.mean(dim=0, keepdim=True).expand(M, 3)
+            #E_xi = xi.mean(dim=0, keepdim=True).expand(M, 3)
+            #E_zi = zi.mean(dim=0, keepdim=True).expand(M, 3)
 
             # 5. Integrar Y un paso dt = 4.2e-3
-            Yn = rk4_step_y(Yn, E_xi, E_zi, dt=dt)
+            Yn = rk4_step_y(Yn, xi, zi, dt=dt)
 
             # 6. Actualizar el buffer: desplazar y agregar el nuevo Yn
             yn_norm = (Yn - stats['y_mean'].to(device)) / stats['y_std'].to(device)
@@ -82,4 +82,4 @@ if __name__ == '__main__':
     test_start_idx = stats['split_idx']
     
     # Simular en el conjunto de prueba que el modelo NUNCA vio en entrenamiento
-    run(M=50, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000)
+    run(M=20, N=20000, dt=4.2e-3, Ts=test_start_idx + 230000, initial_sigma_Y=1e-2)

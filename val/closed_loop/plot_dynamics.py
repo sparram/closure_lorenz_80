@@ -57,7 +57,7 @@ def plot_dynamics(
     axes[0].plot(t_axis, Y_true[:, 0], 'k-', label='Real Y1', alpha=0.8)
     axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean Y1')
     axes[0].fill_between(t_axis, mean_y[:, 0] - 2 * std_y[:, 0], mean_y[:, 0] + 2 * std_y[:, 0], color='r', alpha=0.2)
-    axes[0].set_ylabel('Y1 (Lenta)')
+    axes[0].set_ylabel('Y1')
     axes[0].legend(loc='upper right')
     axes[0].grid(True, linestyle='--', alpha=0.6)
 
@@ -65,7 +65,7 @@ def plot_dynamics(
     axes[1].plot(t_axis, X_true[:, 0], 'k-', label='Real X1', alpha=0.8)
     axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean X1')
     axes[1].fill_between(t_axis, mean_x[:, 0] - 2 * std_x[:, 0], mean_x[:, 0] + 2 * std_x[:, 0], color='b', alpha=0.2)
-    axes[1].set_ylabel('X1 (Rápida)')
+    axes[1].set_ylabel('X1')
     axes[1].legend(loc='upper right')
     axes[1].grid(True, linestyle='--', alpha=0.6)
 
@@ -73,17 +73,17 @@ def plot_dynamics(
     axes[2].plot(t_axis, Z_true[:, 0], 'k-', label='Real Z1', alpha=0.8)
     axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean Z1')
     axes[2].fill_between(t_axis, mean_z[:, 0] - 2 * std_z[:, 0], mean_z[:, 0] + 2 * std_z[:, 0], color='g', alpha=0.2)
-    axes[2].set_xlabel('Tiempo físico (t)')
-    axes[2].set_ylabel('Z1 (Rápida)')
+    axes[2].set_xlabel('Physical time (t)')
+    axes[2].set_ylabel('Z1')
     axes[2].legend(loc='upper right')
     axes[2].grid(True, linestyle='--', alpha=0.6)
 
-    plt.suptitle('Closed Loop Validation: Predicted Y (Slow) with X and Z (Fast)')
+    plt.suptitle('A Posteriori CFM-Predicted Dynamics')
     plt.tight_layout()
 
     os.makedirs('media/closed_loop', exist_ok=True)
     plt.savefig("media/closed_loop/dynamics_comparison.png", dpi=300)
-    plt.show()
+    #plt.show()
 
 if __name__ == '__main__':
     stats = torch.load('checkpoints/norm_stats_hlf.pt')

@@ -61,17 +61,17 @@ def plot_attractor_2d_projections(
                         color='red', alpha=0.5, linewidth=0.5, label=f'Agent {agent_idx + 1}')
             ax_ens.set_xlabel(lbl_i)
             ax_ens.set_ylabel(lbl_j)
-            ax_ens.set_title(f'Agente {agent_idx + 1} | {lbl_i} vs {lbl_j}')
+            ax_ens.set_title(f'Traj {agent_idx + 1} | {lbl_i} vs {lbl_j}')
             ax_ens.grid(True, linestyle='--', alpha=0.5)
 
-    plt.suptitle('Matrix Comparison: Real Attractor vs Ensemble Agents', fontsize=14)
+    plt.suptitle('Real Attractor vs Sampled Attractors', fontsize=14)
     plt.tight_layout()
 
     os.makedirs('media', exist_ok=True)
     out_path = 'media/closed_loop/attractor_sample.png'
     plt.savefig(out_path, dpi=300)
     print(f"Gráficos guardados exitosamente en: {out_path}")
-    plt.show()
+    #plt.show()
 
 if __name__ == '__main__':
     stats = torch.load('checkpoints/norm_stats_hlf.pt')

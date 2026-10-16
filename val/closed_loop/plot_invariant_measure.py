@@ -9,7 +9,7 @@ def plot_invariant_measure(
     checkpoint_path='checkpoints/simulation_history_memory.pt',
     data_path='data/NN_training_data.mat',
     Ts=3000000,
-    burn_in=1000,
+    burn_in=0,
     bins=80,
     cmap='turbo'
 ):
@@ -96,13 +96,13 @@ def plot_invariant_measure(
         cbar = fig.colorbar(im_sim, cax=cax, orientation='horizontal')
         cbar.set_label(f'Probability Density P({lbl_i}, {lbl_j})', fontsize=9)
 
-    plt.suptitle('Closed Loop: Invariant Measure Comparison (Slow Variables Y)', fontsize=15, fontweight='bold', y=0.98)
+    plt.suptitle('A Posteriori Invariant Measure Comparison', fontsize=15, fontweight='bold', y=0.98)
 
     os.makedirs('media', exist_ok=True)
     out_path = 'media/closed_loop/invariant_measure.png'
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     print(f"¡Gráfico guardado exitosamente en {out_path}!")
-    plt.show()
+    #plt.show()
 
 if __name__ == '__main__':
     stats = torch.load('checkpoints/norm_stats_hlf.pt')

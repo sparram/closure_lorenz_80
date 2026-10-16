@@ -48,22 +48,22 @@ def plot_attractor(
 
         # 2. Atractor Simulado (Lazo Cerrado)
         ax.plot(y_sim_member[:, i], y_sim_member[:, j], 
-                color='red', alpha=0.6, linewidth=0.5, label=f'Closed Loop (Member {member_idx})')
+                color='red', alpha=0.6, linewidth=0.5, label=f'CFM Attractor')
 
         ax.set_xlabel(lbl_i)
         ax.set_ylabel(lbl_j)
-        ax.set_title(f'Plano de Fase: {lbl_i} vs {lbl_j}')
+        #ax.set_title(f'{lbl_i} vs {lbl_j}')
         ax.legend(loc='upper right')
         ax.grid(True, linestyle='--', alpha=0.5)
 
-    plt.suptitle('Closed Loop: Attractor Comparison (Slow Variables Y)', fontsize=14)
+    plt.suptitle('A Posteriori Attractor Reconstruction', fontsize=14)
     plt.tight_layout()
 
     os.makedirs('media', exist_ok=True)
     out_path = 'media/closed_loop/attractor_comparison.png'
     plt.savefig(out_path, dpi=300)
     print(f"Gráfico guardado exitosamente en: {out_path}")
-    plt.show()
+    #plt.show()
 
 if __name__ == '__main__':
     stats = torch.load('checkpoints/norm_stats_hlf.pt')
