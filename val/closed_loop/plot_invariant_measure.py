@@ -107,8 +107,4 @@ def plot_invariant_measure(
 if __name__ == '__main__':
     stats = torch.load('checkpoints/norm_stats_hlf.pt')
     test_start_idx = stats['split_idx']
-    plot_invariant_measure(
-        checkpoint_path='checkpoints/simulation_history_fno_memory.pt', 
-        Ts=test_start_idx + 230000, 
-        cmap='turbo'
-    )
+    plot_invariant_measure(Ts=test_start_idx + 230000, cmap='turbo')

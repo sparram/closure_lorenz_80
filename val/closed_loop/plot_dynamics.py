@@ -82,15 +82,10 @@ def plot_dynamics(
     plt.tight_layout()
 
     os.makedirs('media/closed_loop', exist_ok=True)
-    plt.savefig("media/closed_loop/dynamics_comparison_100000.png", dpi=300)
+    plt.savefig("media/closed_loop/dynamics_comparison.png", dpi=300)
     plt.show()
 
 if __name__ == '__main__':
-    stats = torch.load('checkpoints/norm_stats_hlf.pt', weights_only=True)
+    stats = torch.load('checkpoints/norm_stats_hlf.pt')
     test_start_idx = stats['split_idx']
-    
-    # Apuntar al archivo generado por la simulación con FNO
-    plot_dynamics(
-        checkpoint_path='checkpoints/simulation_history_fno_memory.pt', 
-        Ts=test_start_idx + 230000
-    )
+    plot_dynamics(Ts=test_start_idx + 230000)

@@ -26,7 +26,7 @@ class HistoryDataset(Dataset):
         total_points = len(Y_raw)
         split_idx = int(total_points * train_ratio)
 
-        # 1. Calcular estadísticas ÚNICAMENTE con los datos de entrenamiento
+        # 1. Calcular estadísticas ÚNICAMENTE con los datos de entrenamiento (para evitar data leakage)
         y_train = Y_raw[:split_idx]
         xz_train = XZ_raw[:split_idx]
 
@@ -47,7 +47,7 @@ class HistoryDataset(Dataset):
                 'stride': stride,
                 'dt': dt,
                 'k_points': history_len // stride,
-                'split_idx': split_idx + idx_start
+                'split_idx': split_idx + idx_start  # Índice absoluto en la matriz original 'u'
             }
             torch.save(stats, stats_path)
             print(f"[load_data] Estadísticas guardadas. Punto de corte Test (split_idx): {stats['split_idx']}")
@@ -57,6 +57,7 @@ class HistoryDataset(Dataset):
             self.Y_norm = (Y_raw[:split_idx] - y_mean) / y_std
             self.XZ_norm = (XZ_raw[:split_idx] - xz_mean) / xz_std
         elif split == 'val' or split == 'test':
+            # Incluimos los history_len puntos anteriores al corte para no perder el inicio del test set
             self.Y_norm = (Y_raw[split_idx - history_len:] - y_mean) / y_std
             self.XZ_norm = (XZ_raw[split_idx - history_len:] - xz_mean) / xz_std
 
@@ -68,10 +69,10 @@ class HistoryDataset(Dataset):
 
     def __getitem__(self, idx):
         t = idx + self.history_len
-        # Extraemos la ventana y la trasponemos a shape: (3, k_points) -> Ideal para FNO1d
-        y_hist = self.Y_norm[t - self.history_len : t : self.stride].T
+        y_hist = self.Y_norm[t - self.history_len : t : self.stride]
+        y_cond = y_hist.reshape(-1)
         target_xz = self.XZ_norm[t]
-        return y_hist, target_xz
+        return y_cond, target_xz
 
 
 def get_dataloaders(file_path='data/NN_training_data.mat', batch_size=1024, 
