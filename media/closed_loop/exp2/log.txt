@@ -1,0 +1,5 @@
+M=20
+N=20000
+dt=4.2e-3
+Ts=test_start_idx + 230000 = 5030476
+initial_sigma_Y = 1e-3

@@ -14,7 +14,7 @@ def plot_attractor(
         raise FileNotFoundError(f"No se encontró el archivo de simulación: {checkpoint_path}")
 
     print(f"Cargando simulación desde: {checkpoint_path}")
-    data = torch.load(checkpoint_path, map_location='cpu')
+    data = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
 
     ens_y = data['history_y']  # Shape: [N, M, 3]
     N_sim, M, _ = ens_y.shape
@@ -66,7 +66,7 @@ def plot_attractor(
     #plt.show()
 
 if __name__ == '__main__':
-    stats = torch.load('checkpoints/norm_stats_hlf.pt')
+    stats = torch.load('checkpoints/norm_stats_hlf.pt', weights_only=True)
     test_start_idx = stats['split_idx']
     #run(N=20000, dt=4.2e-3, Ts=test_start_idx + 100000)
     plot_attractor(Ts=test_start_idx + 230000)

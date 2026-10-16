@@ -4,7 +4,7 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 from src.physics import rk4_step_y
 
-def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-2):
+def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-3):
     torch.set_num_threads(4)
     torch.manual_seed(37)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -82,4 +82,4 @@ if __name__ == '__main__':
     test_start_idx = stats['split_idx']
     
     # Simular en el conjunto de prueba que el modelo NUNCA vio en entrenamiento
-    run(M=20, N=20000, dt=4.2e-3, Ts=test_start_idx + 230000, initial_sigma_Y=1e-2)
+    run(M=50, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000, initial_sigma_Y=1e-4)

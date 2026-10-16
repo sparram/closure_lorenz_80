@@ -13,7 +13,7 @@ def plot_dynamics(
         raise FileNotFoundError(f"No se encontró el archivo de simulación: {checkpoint_path}")
 
     print(f"Cargando simulación desde: {checkpoint_path}")
-    data = torch.load(checkpoint_path, map_location='cpu')
+    data = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
 
     ens_x = data['history_x']  # Shape: [N, M, 3]
     ens_y = data['history_y']  # Shape: [N, M, 3]
@@ -54,6 +54,7 @@ def plot_dynamics(
     fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
 
     # 1. Variable Lenta Y1
+    axes[0].plot(t_axis, ens_y[:, :, 0], color='gray', alpha=0.12, linewidth=0.4)
     axes[0].plot(t_axis, Y_true[:, 0], 'k-', label='Real Y1', alpha=0.8)
     axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean Y1')
     axes[0].fill_between(t_axis, mean_y[:, 0] - 2 * std_y[:, 0], mean_y[:, 0] + 2 * std_y[:, 0], color='r', alpha=0.2)
@@ -62,6 +63,7 @@ def plot_dynamics(
     axes[0].grid(True, linestyle='--', alpha=0.6)
 
     # 2. Variable Rápida X1
+    axes[1].plot(t_axis, ens_x[:, :, 0], color='gray', alpha=0.12, linewidth=0.4)
     axes[1].plot(t_axis, X_true[:, 0], 'k-', label='Real X1', alpha=0.8)
     axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean X1')
     axes[1].fill_between(t_axis, mean_x[:, 0] - 2 * std_x[:, 0], mean_x[:, 0] + 2 * std_x[:, 0], color='b', alpha=0.2)
@@ -70,6 +72,7 @@ def plot_dynamics(
     axes[1].grid(True, linestyle='--', alpha=0.6)
 
     # 3. Variable Rápida Z1
+    axes[2].plot(t_axis, ens_z[:, :, 0], color='gray', alpha=0.12, linewidth=0.4)
     axes[2].plot(t_axis, Z_true[:, 0], 'k-', label='Real Z1', alpha=0.8)
     axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean Z1')
     axes[2].fill_between(t_axis, mean_z[:, 0] - 2 * std_z[:, 0], mean_z[:, 0] + 2 * std_z[:, 0], color='g', alpha=0.2)
@@ -82,10 +85,10 @@ def plot_dynamics(
     plt.tight_layout()
 
     os.makedirs('media/closed_loop', exist_ok=True)
-    plt.savefig("media/closed_loop/dynamics_comparison.png", dpi=300)
+    plt.savefig("media/closed_loop/cfm_dynamics_comparison.png", dpi=300)
     #plt.show()
 
 if __name__ == '__main__':
-    stats = torch.load('checkpoints/norm_stats_hlf.pt')
+    stats = torch.load('checkpoints/norm_stats_hlf.pt', weights_only=True)
     test_start_idx = stats['split_idx']
     plot_dynamics(Ts=test_start_idx + 230000)

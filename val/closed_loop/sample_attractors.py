@@ -14,7 +14,7 @@ def plot_attractor_2d_projections(
         raise FileNotFoundError(f"No se encontró el archivo de simulación: {checkpoint_path}")
 
     print(f"Cargando simulación desde: {checkpoint_path}")
-    data = torch.load(checkpoint_path, map_location='cpu')
+    data = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
 
     ens_y = data['history_y']  # Shape: [N_sim, M, 3]
     N_sim, M, _ = ens_y.shape
@@ -74,6 +74,6 @@ def plot_attractor_2d_projections(
     #plt.show()
 
 if __name__ == '__main__':
-    stats = torch.load('checkpoints/norm_stats_hlf.pt')
+    stats = torch.load('checkpoints/norm_stats_hlf.pt', weights_only=True)
     test_start_idx = stats['split_idx']
     plot_attractor_2d_projections(Ts=test_start_idx + 230000)

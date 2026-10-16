@@ -17,7 +17,7 @@ def plot_invariant_measure(
         raise FileNotFoundError(f"No se encontró el archivo de simulación: {checkpoint_path}")
 
     print(f"Cargando historial de simulación desde {checkpoint_path}...")
-    data = torch.load(checkpoint_path, map_location='cpu')
+    data = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
 
     ens_y = data['history_y'].numpy()  # Shape: [N_sim, M, 3]
     N_sim, M, _ = ens_y.shape
@@ -28,12 +28,13 @@ def plot_invariant_measure(
     # Cargar referencia real Y_true desfasada por Ts
     if os.path.exists(data_path):
         raw_mat = scipy.io.loadmat(data_path)['u']
-        Y_true = raw_mat[3:6, Ts : Ts + N_sim].T  # Shape: [N_sim, 3]
+        Y_true = raw_mat[3:6, Ts :].T  # Shape: [N_sim, 3]
     else:
         raise FileNotFoundError(f"No se encontró el archivo de referencia: {data_path}")
-
+    
     # 1. Descartar el período transitorio (burn-in)
     Y_true_attractor = Y_true[burn_in:]
+    print(Y_true_attractor.shape)
     history_y_attractor = ens_y[burn_in:].reshape(-1, 3)  # Aplanar todos los pasos y agentes
 
     pairs = [(0, 1), (1, 2), (2, 0)]
@@ -105,6 +106,6 @@ def plot_invariant_measure(
     #plt.show()
 
 if __name__ == '__main__':
-    stats = torch.load('checkpoints/norm_stats_hlf.pt')
+    stats = torch.load('checkpoints/norm_stats_hlf.pt', weights_only=True)
     test_start_idx = stats['split_idx']
     plot_invariant_measure(Ts=test_start_idx + 230000, cmap='turbo')
