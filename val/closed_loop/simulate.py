@@ -82,4 +82,4 @@ if __name__ == '__main__':
     test_start_idx = stats['split_idx']
     
     # Simular en el conjunto de prueba que el modelo NUNCA vio en entrenamiento
-    run(M=50, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000, initial_sigma_Y=1e-4)
+    run(M=50, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000, initial_sigma_Y=1e-3)
