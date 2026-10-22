@@ -76,27 +76,36 @@ def run_level2_scatter_validation(
     # --- GRAFICACIÓN EN LAZO ABIERTO (OUT-OF-SAMPLE) ---
     # Mostramos los primeros 2,000 pasos contiguos para observar la alta frecuencia limpia
     plot_len = min(50000, num_samples)
-    t_axis = (torch.arange(skip_transient, skip_transient + plot_len) * stats['dt']).numpy()
+    t_axis = torch.arange(skip_transient, skip_transient + plot_len).numpy() * 45 / 86400 # Mult by 45 sec and divide by 86400 sec / day
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    plt.rcParams.update({
+        'font.size': 15,
+        'axes.labelsize': 15,
+        'axes.titlesize': 13,
+        'xtick.labelsize': 15,
+        'ytick.labelsize': 15,
+        'legend.fontsize': 13
+    })
+    
+    fig, axes = plt.subplots(1, 2, figsize=(16, 5))
 
     # 1. Variable Rápida X1
     axes[0].plot(t_axis, X_true[:plot_len, 0].numpy(), color='black', alpha=0.7, linewidth=1.2, label='Real X1')
-    axes[0].plot(t_axis, hat_x[:plot_len, 0].numpy(), color='red', alpha=0.6, linewidth=1.0, label='Generated X1 (CFM)')
-    axes[0].set_xlabel('Physical Time (t)')
+    axes[0].plot(t_axis, hat_x[:plot_len, 0].numpy(), color='red', alpha=0.6, linewidth=1.0, label='Predicted X1')
+    axes[0].set_xlabel('Time (sec)')
     axes[0].set_ylabel('X1')
-    axes[0].legend(loc='upper right')
+    axes[0].legend(loc='lower right')
     axes[0].grid(True, linestyle='--', alpha=0.5)
 
     # 2. Variable Rápida Z1
     axes[1].plot(t_axis, Z_true[:plot_len, 0].numpy(), color='black', alpha=0.7, linewidth=1.2, label='Real Z1')
-    axes[1].plot(t_axis, hat_z[:plot_len, 0].numpy(), color='red', alpha=0.6, linewidth=1.0, label='Generated Z1 (CFM)')
-    axes[1].set_xlabel('Physical Time (t)')
+    axes[1].plot(t_axis, hat_z[:plot_len, 0].numpy(), color='red', alpha=0.6, linewidth=1.0, label='Predicted Z1')
+    axes[1].set_xlabel('Time (sec)')
     axes[1].set_ylabel('Z1')
-    axes[1].legend(loc='upper right')
+    axes[1].legend(loc='lower right')
     axes[1].grid(True, linestyle='--', alpha=0.5)
 
-    plt.suptitle('Open Loop Validation (Out-of-Sample Test Set): Fast Variables Reconstruction', fontsize=13)
+    #plt.suptitle('Open Loop Validation (Out-of-Sample Test Set): Fast Variables Reconstruction', fontsize=13)
     plt.tight_layout()
     
     os.makedirs('media', exist_ok=True)

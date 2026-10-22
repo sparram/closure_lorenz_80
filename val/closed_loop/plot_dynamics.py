@@ -38,7 +38,7 @@ def plot_dynamics(
         raise FileNotFoundError(f"No se encontró el archivo de datos de referencia: {data_path}")
 
     # Eje de tiempo físico
-    t_axis = (torch.arange(N) * dt).numpy()
+    t_axis = torch.arange(Ts, Ts + N).numpy() * 45 / 86400 # Mult by 45 sec and divide by 86400 sec / day
 
     # Promedio y desviación estándar del ensemble
     mean_y = ens_y.mean(dim=1).float().numpy()
@@ -50,43 +50,57 @@ def plot_dynamics(
     mean_z = ens_z.mean(dim=1).float().numpy()
     std_z = ens_z.std(dim=1).float().numpy()
 
+    # --- CONFIGURACIÓN DE ESTILO PARA MÁXIMA LEGIBILIDAD ---
+    plt.rcParams.update({
+        'font.size': 15,
+        'axes.labelsize': 15,
+        'axes.titlesize': 13,
+        'xtick.labelsize': 15,
+        'ytick.labelsize': 15,
+        'legend.fontsize': 13
+    })
+
     # --- GRAFICACIÓN MULTIPANEL ---
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
+    fig, axes = plt.subplots(3, 1, figsize=(14, 7.5), sharex=True)
 
     # 1. Variable Lenta Y1
-    axes[0].plot(t_axis, ens_y[:, :, 0], color='gray', alpha=0.12, linewidth=0.4)
-    axes[0].plot(t_axis, Y_true[:, 0], 'k-', label='Real Y1', alpha=0.8)
-    axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean Y1')
+    axes[0].plot(t_axis, ens_y[:, :, 0], color='gray', alpha=0.15, linewidth=0.5)
+    axes[0].plot(t_axis, Y_true[:, 0], 'k-', label='Real $Y_1$', alpha=0.9, linewidth=1.2)
+    axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean $Y_1$', linewidth=1.2)
     axes[0].fill_between(t_axis, mean_y[:, 0] - 2 * std_y[:, 0], mean_y[:, 0] + 2 * std_y[:, 0], color='r', alpha=0.2)
-    axes[0].set_ylabel('Y1')
-    axes[0].legend(loc='upper right')
-    axes[0].grid(True, linestyle='--', alpha=0.6)
+    axes[0].set_ylabel('$Y_1$ (Slow)')
+    axes[0].legend(loc='lower right', frameon=True, framealpha=0.9)
+    axes[0].grid(True, linestyle='--', alpha=0.4)
 
     # 2. Variable Rápida X1
-    axes[1].plot(t_axis, ens_x[:, :, 0], color='gray', alpha=0.12, linewidth=0.4)
-    axes[1].plot(t_axis, X_true[:, 0], 'k-', label='Real X1', alpha=0.8)
-    axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean X1')
+    axes[1].plot(t_axis, ens_x[:, :, 0], color='gray', alpha=0.15, linewidth=0.5)
+    axes[1].plot(t_axis, X_true[:, 0], 'k-', label='Real $X_1$', alpha=0.9, linewidth=1.2)
+    axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean $X_1$', linewidth=1.2)
     axes[1].fill_between(t_axis, mean_x[:, 0] - 2 * std_x[:, 0], mean_x[:, 0] + 2 * std_x[:, 0], color='b', alpha=0.2)
-    axes[1].set_ylabel('X1')
-    axes[1].legend(loc='upper right')
-    axes[1].grid(True, linestyle='--', alpha=0.6)
+    axes[1].set_ylabel('$X_1$ (Fast)')
+    axes[1].legend(loc='lower right', frameon=True, framealpha=0.9)
+    axes[1].grid(True, linestyle='--', alpha=0.4)
 
     # 3. Variable Rápida Z1
-    axes[2].plot(t_axis, ens_z[:, :, 0], color='gray', alpha=0.12, linewidth=0.4)
-    axes[2].plot(t_axis, Z_true[:, 0], 'k-', label='Real Z1', alpha=0.8)
-    axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean Z1')
+    axes[2].plot(t_axis, ens_z[:, :, 0], color='gray', alpha=0.15, linewidth=0.5)
+    axes[2].plot(t_axis, Z_true[:, 0], 'k-', label='Real $Z_1$', alpha=0.9, linewidth=1.2)
+    axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean $Z_1$', linewidth=1.2)
     axes[2].fill_between(t_axis, mean_z[:, 0] - 2 * std_z[:, 0], mean_z[:, 0] + 2 * std_z[:, 0], color='g', alpha=0.2)
-    axes[2].set_xlabel('Physical time (t)')
-    axes[2].set_ylabel('Z1')
-    axes[2].legend(loc='upper right')
-    axes[2].grid(True, linestyle='--', alpha=0.6)
+    axes[2].set_xlabel('Time (days)')
+    axes[2].set_ylabel('$Z_1$ (Fast)')
+    axes[2].legend(loc='lower right', frameon=True, framealpha=0.9)
+    axes[2].grid(True, linestyle='--', alpha=0.4)
 
-    plt.suptitle('A Posteriori CFM-Predicted Dynamics')
+    #plt.suptitle('A Posteriori CFM-Predicted Dynamics', fontsize=14, fontweight='bold', y=0.98)
     plt.tight_layout()
 
     os.makedirs('media/closed_loop', exist_ok=True)
-    plt.savefig("media/closed_loop/cfm_dynamics_comparison.png", dpi=300)
-    #plt.show()
+    
+    # Guardar en formato PDF (vectorial) y PNG (alta resolución)
+    plt.savefig("media/closed_loop/cfm_dynamics_comparison.pdf", bbox_inches='tight')
+    plt.savefig("media/closed_loop/cfm_dynamics_comparison.png", dpi=300, bbox_inches='tight')
+    print("¡Gráficas guardadas con éxito en PDF y PNG!")
+    plt.close()
 
 if __name__ == '__main__':
     stats = torch.load('checkpoints/norm_stats_hlf.pt', weights_only=True)

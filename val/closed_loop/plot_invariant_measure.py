@@ -38,11 +38,21 @@ def plot_invariant_measure(
     history_y_attractor = ens_y[burn_in:].reshape(-1, 3)  # Aplanar todos los pasos y agentes
 
     pairs = [(0, 1), (1, 2), (2, 0)]
-    labels = [('Y1', 'Y2'), ('Y2', 'Y3'), ('Y3', 'Y1')]
+    labels = [('Y_1', 'Y_2'), ('Y_2', 'Y_3'), ('Y_3', 'Y_1')]
 
+    # --- CONFIGURACIÓN DE ESTILO PARA MÁXIMA LEGIBILIDAD ---
+    plt.rcParams.update({
+        'font.size': 15,
+        'axes.labelsize': 15,
+        'axes.titlesize': 13,
+        'xtick.labelsize': 15,
+        'ytick.labelsize': 15,
+        'legend.fontsize': 13
+    })
+    
     # Configuración de GridSpec con 3 filas:
     # Fila 0: Real | Fila 1: CFM Approximated | Fila 2: Colorbars
-    fig = plt.figure(figsize=(16, 9.5))
+    fig = plt.figure(figsize=(18, 9.5))
     gs = fig.add_gridspec(3, 3, height_ratios=[1, 1, 0.04], hspace=0.45, wspace=0.25)
 
     for col, ((i, j), (lbl_i, lbl_j)) in enumerate(zip(pairs, labels)):
@@ -79,28 +89,29 @@ def plot_invariant_measure(
         # --- FILA SUPERIOR (Fila 0): Atractor Real ---
         ax_real = fig.add_subplot(gs[0, col])
         im_real = ax_real.pcolormesh(X, Y, H_real.T, cmap=cmap, vmin=vmin, vmax=vmax, shading='gouraud')
-        ax_real.set_title(f'Real P({lbl_i}, {lbl_j})', fontsize=12, fontweight='bold')
-        ax_real.set_xlabel(lbl_i)
-        ax_real.set_ylabel(lbl_j)
+        ax_real.set_title(f'$P({lbl_i}, {lbl_j})$', fontsize=14)
+        ax_real.set_xlabel(f'${lbl_i}$')
+        ax_real.set_ylabel(f'${lbl_j}$')
         ax_real.grid(True, linestyle=':', alpha=0.3, color='white')
 
         # --- FILA INFERIOR (Fila 1): CFM Aproximado ---
         ax_sim = fig.add_subplot(gs[1, col])
         im_sim = ax_sim.pcolormesh(X, Y, H_sim.T, cmap=cmap, vmin=vmin, vmax=vmax, shading='gouraud')
-        ax_sim.set_title(f'CFM Approximated P({lbl_i}, {lbl_j})', fontsize=12, fontweight='bold')
-        ax_sim.set_xlabel(lbl_i)
-        ax_sim.set_ylabel(lbl_j)
+        ax_sim.set_title(fr'$P_{{\text{{CFM}}}}({lbl_i}, {lbl_j})$', fontsize=14)
+        ax_sim.set_xlabel(f'${lbl_i}$')
+        ax_sim.set_ylabel(f'${lbl_j}$')
         ax_sim.grid(True, linestyle=':', alpha=0.3, color='white')
 
         # --- FILA DE COLORBARS (Fila 2) ---
         cax = fig.add_subplot(gs[2, col])
         cbar = fig.colorbar(im_sim, cax=cax, orientation='horizontal')
-        cbar.set_label(f'Probability Density P({lbl_i}, {lbl_j})', fontsize=9)
+        #cbar.set_label(f'Probability Density P({lbl_i}, {lbl_j})', fontsize=14)
 
-    plt.suptitle('A Posteriori Invariant Measure Comparison', fontsize=15, fontweight='bold', y=0.98)
+    #plt.suptitle('A Posteriori Invariant Measure Comparison', fontsize=15, fontweight='bold', y=0.98)
 
     os.makedirs('media', exist_ok=True)
     out_path = 'media/closed_loop/invariant_measure.png'
+    plt.tight_layout()
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     print(f"¡Gráfico guardado exitosamente en {out_path}!")
     #plt.show()

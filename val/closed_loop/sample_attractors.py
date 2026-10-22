@@ -36,6 +36,15 @@ def plot_attractor_2d_projections(
         raise FileNotFoundError(f"No se encontró el archivo de referencia: {data_path}")
 
     # Matriz de subplots: 3 filas (proyecciones) x (1 Real + num_agents Columnas)
+    plt.rcParams.update({
+        'font.size': 15,
+        'axes.labelsize': 15,
+        'axes.titlesize': 13,
+        'xtick.labelsize': 15,
+        'ytick.labelsize': 15,
+        'legend.fontsize': 13
+    })
+    
     fig, axes = plt.subplots(3, 1 + num_agents, figsize=(3.5 * (1 + num_agents), 7), sharex='row', sharey='row')
 
     pairs = [(0, 1), (1, 2), (2, 0)]
@@ -49,7 +58,7 @@ def plot_attractor_2d_projections(
                      color='black', alpha=0.5, linewidth=0.5, label='Real')
         ax_real.set_xlabel(lbl_i)
         ax_real.set_ylabel(lbl_j)
-        ax_real.set_title(f'Real | {lbl_i} vs {lbl_j}')
+        #ax_real.set_title(f'Real | {lbl_i} vs {lbl_j}')
         ax_real.grid(True, linestyle='--', alpha=0.5)
 
         # --- Columnas 1 a num_agents: Agentes del Ensemble ---
@@ -61,10 +70,10 @@ def plot_attractor_2d_projections(
                         color='red', alpha=0.5, linewidth=0.5, label=f'Agent {agent_idx + 1}')
             ax_ens.set_xlabel(lbl_i)
             ax_ens.set_ylabel(lbl_j)
-            ax_ens.set_title(f'Traj {agent_idx + 1} | {lbl_i} vs {lbl_j}')
+            #ax_ens.set_title(f'Traj {agent_idx + 1} | {lbl_i} vs {lbl_j}')
             ax_ens.grid(True, linestyle='--', alpha=0.5)
 
-    plt.suptitle('Real Attractor vs Sampled Attractors', fontsize=14)
+    #plt.suptitle('Real Attractor vs Sampled Attractors', fontsize=14)
     plt.tight_layout()
 
     os.makedirs('media', exist_ok=True)

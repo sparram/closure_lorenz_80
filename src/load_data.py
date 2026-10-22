@@ -6,7 +6,8 @@ from torch.utils.data import Dataset, DataLoader
 
 class HistoryDataset(Dataset):
     def __init__(self, file_path='data/NN_training_data.mat', t_transient=10.0, dt=4.2e-3, 
-                 history_len=5000, stride=50, split='train', train_ratio=0.8,
+                 history_len=5000, stride=50, split='train', 
+                 split_idx=1344000, val_points=576000, 
                  save_stats=True, stats_path='checkpoints/norm_stats_hlf.pt'):
         
         if not os.path.exists(file_path):
@@ -22,9 +23,6 @@ class HistoryDataset(Dataset):
         
         XZ_raw = torch.tensor(np.hstack([X_raw, Z_raw]), dtype=torch.float32)
         Y_raw = torch.tensor(Y_raw, dtype=torch.float32)
-
-        total_points = len(Y_raw)
-        split_idx = int(total_points * train_ratio)
 
         # 1. Calcular estadísticas ÚNICAMENTE con los datos de entrenamiento (para evitar data leakage)
         y_train = Y_raw[:split_idx]
@@ -50,16 +48,19 @@ class HistoryDataset(Dataset):
                 'split_idx': split_idx + idx_start  # Índice absoluto en la matriz original 'u'
             }
             torch.save(stats, stats_path)
-            print(f"[load_data] Estadísticas guardadas. Punto de corte Test (split_idx): {stats['split_idx']}")
+            print(f"[load_data] Estadísticas guardadas. Punto de corte Train/Val (split_idx): {stats['split_idx']}")
 
         # 2. Cortar el dataset según el split solicitado
         if split == 'train':
             self.Y_norm = (Y_raw[:split_idx] - y_mean) / y_std
             self.XZ_norm = (XZ_raw[:split_idx] - xz_mean) / xz_std
         elif split == 'val' or split == 'test':
-            # Incluimos los history_len puntos anteriores al corte para no perder el inicio del test set
-            self.Y_norm = (Y_raw[split_idx - history_len:] - y_mean) / y_std
-            self.XZ_norm = (XZ_raw[split_idx - history_len:] - xz_mean) / xz_std
+            # El conjunto de validación abarca desde split_idx hasta (split_idx + val_points)
+            end_idx = min(split_idx + val_points, len(Y_raw))
+            
+            # Incluimos los history_len puntos anteriores al corte para mantener la ventana de memoria
+            self.Y_norm = (Y_raw[split_idx - history_len : end_idx] - y_mean) / y_std
+            self.XZ_norm = (XZ_raw[split_idx - history_len : end_idx] - xz_mean) / xz_std
 
         self.history_len = history_len
         self.stride = stride
@@ -76,10 +77,10 @@ class HistoryDataset(Dataset):
 
 
 def get_dataloaders(file_path='data/NN_training_data.mat', batch_size=1024, 
-                    history_len=5000, stride=50, train_ratio=0.8):
+                    history_len=5000, stride=50, split_idx=1344000, val_points=576000):
     
-    train_dataset = HistoryDataset(file_path=file_path, history_len=history_len, stride=stride, split='train', train_ratio=train_ratio)
-    val_dataset = HistoryDataset(file_path=file_path, history_len=history_len, stride=stride, split='val', train_ratio=train_ratio, save_stats=False)
+    train_dataset = HistoryDataset(file_path=file_path, history_len=history_len, stride=stride, split='train', split_idx=split_idx, val_points=val_points)
+    val_dataset = HistoryDataset(file_path=file_path, history_len=history_len, stride=stride, split='val', split_idx=split_idx, val_points=val_points, save_stats=False)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
