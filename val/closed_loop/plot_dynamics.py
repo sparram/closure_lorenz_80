@@ -65,29 +65,29 @@ def plot_dynamics(
 
     # 1. Variable Lenta Y1
     axes[0].plot(t_axis, ens_y[:, :, 0], color='gray', alpha=0.15, linewidth=0.5)
-    axes[0].plot(t_axis, Y_true[:, 0], 'k-', label='Real $Y_1$', alpha=0.9, linewidth=1.2)
-    axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='Ensemble Mean $Y_1$', linewidth=1.2)
+    axes[0].plot(t_axis, Y_true[:, 0], 'k-', label='Data', alpha=0.9, linewidth=1.2)
+    axes[0].plot(t_axis, mean_y[:, 0], 'r--', label='CFM Mean', linewidth=1.2)
     axes[0].fill_between(t_axis, mean_y[:, 0] - 2 * std_y[:, 0], mean_y[:, 0] + 2 * std_y[:, 0], color='r', alpha=0.2)
-    axes[0].set_ylabel('$Y_1$ (Slow)')
+    axes[0].set_ylabel('$Y_1$')
     axes[0].legend(loc='lower right', frameon=True, framealpha=0.9)
     axes[0].grid(True, linestyle='--', alpha=0.4)
 
     # 2. Variable Rápida X1
     axes[1].plot(t_axis, ens_x[:, :, 0], color='gray', alpha=0.15, linewidth=0.5)
-    axes[1].plot(t_axis, X_true[:, 0], 'k-', label='Real $X_1$', alpha=0.9, linewidth=1.2)
-    axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='Ensemble Mean $X_1$', linewidth=1.2)
+    axes[1].plot(t_axis, X_true[:, 0], 'k-', label='Data', alpha=0.9, linewidth=1.2)
+    axes[1].plot(t_axis, mean_x[:, 0], 'b--', label='CFM Mean', linewidth=1.2)
     axes[1].fill_between(t_axis, mean_x[:, 0] - 2 * std_x[:, 0], mean_x[:, 0] + 2 * std_x[:, 0], color='b', alpha=0.2)
-    axes[1].set_ylabel('$X_1$ (Fast)')
+    axes[1].set_ylabel('$X_1$')
     axes[1].legend(loc='lower right', frameon=True, framealpha=0.9)
     axes[1].grid(True, linestyle='--', alpha=0.4)
 
     # 3. Variable Rápida Z1
     axes[2].plot(t_axis, ens_z[:, :, 0], color='gray', alpha=0.15, linewidth=0.5)
-    axes[2].plot(t_axis, Z_true[:, 0], 'k-', label='Real $Z_1$', alpha=0.9, linewidth=1.2)
-    axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='Ensemble Mean $Z_1$', linewidth=1.2)
+    axes[2].plot(t_axis, Z_true[:, 0], 'k-', label='Data', alpha=0.9, linewidth=1.2)
+    axes[2].plot(t_axis, mean_z[:, 0], 'g--', label='CFM Mean', linewidth=1.2)
     axes[2].fill_between(t_axis, mean_z[:, 0] - 2 * std_z[:, 0], mean_z[:, 0] + 2 * std_z[:, 0], color='g', alpha=0.2)
     axes[2].set_xlabel('Time (days)')
-    axes[2].set_ylabel('$Z_1$ (Fast)')
+    axes[2].set_ylabel('$Z_1$')
     axes[2].legend(loc='lower right', frameon=True, framealpha=0.9)
     axes[2].grid(True, linestyle='--', alpha=0.4)
 
