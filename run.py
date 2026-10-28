@@ -1,6 +1,6 @@
 import torch
 from src.cfm import CFM, FlowModel
-from config import data_path, idx_0, N_train, N_test, N_ens, sigma0, device
+from config import data_path, idx_0, N_train, N_test, N_ens, sigma0, K, stride, device
 import scipy.io
 import math
 
@@ -33,23 +33,33 @@ def rk4_step_y(y, x, z, dt=4.2e-3):
 def run():
     data = scipy.io.loadmat(data_path)
     U_raw = data["u"]
-    
-    #idx_0 = 100000
-    #N_train = 1000000
-    #N_test = 5000
-    
-    X_test = U_raw[0:3][:, idx_0+N_train:idx_0+N_train+N_test]
-    Y_test = U_raw[3:6][:, idx_0+N_train:idx_0+N_train+N_test]
-    Z_test = U_raw[6:9][:, idx_0+N_train:idx_0+N_train+N_test]
-    
-    Y0 = torch.from_numpy(Y_test[:,0])[:, None]
-    Y_pred = Y0 + sigma0 * torch.randn((3,N_ens))
+
+    split_idx = idx_0+N_train
+    X_test = U_raw[0:3][:, split_idx : split_idx + N_test]
+    Y_test = U_raw[3:6][:, split_idx : split_idx + N_test]
+    Z_test = U_raw[6:9][:, split_idx : split_idx + N_test]
 
     stats = torch.load("norm_stats.pt", map_location=device, weights_only=True)
     meanX, stdX = stats["meanX"], stats["stdX"]
     meanY, stdY = stats["meanY"], stats["stdY"]
     meanZ, stdZ = stats["meanZ"], stats["stdZ"]
 
+    print("="*100)
+    Y_hist = U_raw[3:6][:, split_idx - K * stride : split_idx : stride]
+    print(Y_hist.shape)
+    Y_hist = torch.from_numpy(Y_hist).t()
+    print(Y_hist.shape)
+    
+    Y_hist = (Y_hist - meanY) / stdY
+    print(Y_hist.shape)
+    Y_hist = Y_hist.repeat(N_ens, 1, 1)
+    print(Y_hist.shape)
+    print("="*100)
+    
+    Y0 = torch.from_numpy(Y_test)[:,0][:, None]
+    Y_pred = Y0 + sigma0 * torch.randn((3,N_ens))
+    print(Y_pred.shape)
+        
     v_flow = FlowModel()
     weights = torch.load("cfm_model.pt", map_location=device, weights_only=True)
     v_flow.load_state_dict(weights)
@@ -57,26 +67,31 @@ def run():
     
     X_sim = []
     for k in range(N_test):
-        X_in_test = ( (Y_pred - meanY[:, None]) / stdY[:, None] ).t()
-
-        print("AQUI", X_in_test.shape, X_in_test.dtype)
+        X_in_test = Y_hist.reshape(N_ens, 3*K)
+        #print(Y_hist.shape, X_in_test.shape)
         X_in_test = X_in_test.to(dtype=torch.float32)
-        print("AQUI2", X_in_test.shape, X_in_test.dtype)
         
         X_out_test = cfm.sample(X_in_test)
         X_pred, Z_pred = X_out_test
         
         X_pred = X_pred.t() * stdX[:, None] + meanX[:, None]
         Z_pred = Z_pred.t() * stdZ[:, None] + meanZ[:, None]
-        
+
         Y_pred = rk4_step_y(Y_pred.t(), X_pred.t(), Z_pred.t()).t()
-    
-        X_sim.append(torch.hstack([X_pred.mean(dim=-1), Y_pred.mean(dim=-1), Z_pred.mean(dim=-1)]))
+
+        #print("FORMA:", X_pred.shape, Y_pred.shape, Z_pred.shape)
+        X_sim.append(torch.vstack([X_pred, Y_pred, Z_pred]))
+        #print(torch.vstack([X_pred, Y_pred, Z_pred]).shape)
+
+        Y_pred_norm = (Y_pred - meanY[:, None]) / stdY[:, None]
+        Y_hist[:, :-1, :] = Y_hist[:, 1:, :].clone()
+        Y_hist[:, -1, :] = Y_pred_norm.t()
     
         if k % 500 == 0:
             print(f"PROGRESS: {k} / {N_test}")
-            
+        
     X_sim = torch.stack(X_sim)
+    print(X_sim.shape)
     torch.save(X_sim, "cfm_sim.pt")
     
 if __name__ == "__main__":

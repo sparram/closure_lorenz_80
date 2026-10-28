@@ -82,7 +82,7 @@ def get_dataloader(split):
     if split == "train":
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     if split == "test":
-        data_loader = DataLoader(dataset, batch_size=1, shuffle=True)
+        data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
     return data_loader
 
 if __name__ == "__main__":

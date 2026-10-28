@@ -5,7 +5,7 @@ device = 'cpu'
 # DATALOAD PARAMETERS
 idx_0 = 100000
 N_train = 5000000
-N_test = 10000
+N_test = 5000
 
 # CFM PARAMETERS
 K = 100           # Total memory points
