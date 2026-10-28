@@ -1,8 +1,9 @@
 import torch
 import scipy.io
-from src.model import ConditionalVelocityField
-from src.flow_matching import ConditionalFlowMatcher
+from src.model import FlowModel
+from src.flow_matching import CFM
 from src.physics import rk4_step_y
+from config import data_path, N_hist, stride, K
 
 def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-3):
     torch.set_num_threads(4)
@@ -10,12 +11,9 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-3):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     stats = torch.load('checkpoints/norm_stats_hlf.pt', map_location=device)
-    N_hist = stats['N_hist'] # 5000
-    stride = stats['stride']           # 50
-    k_points = stats['k_points']       # 100
-    dim_cond = k_points * 3            # 300
+    cond_dim = 3 * K
 
-    data = scipy.io.loadmat('data/NN_training_data.mat')['u']
+    data = scipy.io.loadmat(data_path)['u']
     
     # 1. Cargar los 5,000 pasos de historia previa exacta a t=0
     raw_history = torch.from_numpy(data[3:6, Ts - N_hist : Ts].T).to(dtype=torch.float32, device=device)
@@ -28,9 +26,9 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-3):
     Yn = (y_hist_norm[-1].unsqueeze(0).repeat(M, 1) * stats['y_std'].to(device)) + stats['y_mean'].to(device)
     Yn = Yn + torch.randn(M, 3, device=device) * initial_sigma_Y
 
-    model = ConditionalVelocityField(dim_cond=dim_cond, hidden_dim=256).to(device)
+    model = FlowModel(cond_dim=cond_dim, hidden_dim=256).to(device)
     model.load_state_dict(torch.load('checkpoints/cfm_model_hlf.pt', map_location=device, weights_only=True))
-    cfm = ConditionalFlowMatcher(model)
+    cfm = CFM(model)
     model.eval()
 
     ens_y = torch.zeros(N, M, 3, dtype=torch.float16, device=device)
@@ -82,4 +80,4 @@ if __name__ == '__main__':
     test_start_idx = stats['split_idx']
     
     # Simular en el conjunto de prueba que el modelo NUNCA vio en entrenamiento
-    run(M=50, N=100000, dt=4.2e-3, Ts=test_start_idx + 230000, initial_sigma_Y=1e-4)
+    run(M=5, N=30000, dt=4.2e-3, Ts=test_start_idx + 230000, initial_sigma_Y=1e-2)

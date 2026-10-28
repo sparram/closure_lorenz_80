@@ -4,27 +4,27 @@ import numpy as np
 import torch
 from tqdm import tqdm
 from src.load_data import get_dataloaders
-from src.model import ConditionalVelocityField
-from src.flow_matching import ConditionalFlowMatcher
+from src.model import FlowModel
+from src.flow_matching import CFM
+from config import N_hist, stride, K
 
 def train():
     N_hist = 5000
     stride = 50
-    k_points = N_hist // stride  # 100
-    dim_cond = k_points * 3           # 300
+    K = N_hist // stride  # 100
+    cond_dim = 3 * K           # 300
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Entrenando en: {device} | Dim Condición Historia: {dim_cond}")
+    print(f"Entrenando en: {device} | Dim Condición Historia: {cond_dim}")
 
     train_loader, val_loader = get_dataloaders(
-        'data/NN_training_data.mat', 
         batch_size=1024, 
         N_hist=N_hist, 
         stride=stride
     )
 
-    model = ConditionalVelocityField(dim_cond=dim_cond, hidden_dim=256).to(device)
-    cfm = ConditionalFlowMatcher(model)
+    model = FlowModel(cond_dim=cond_dim, hidden_dim=256).to(device)
+    cfm = CFM(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     epochs = 25
