@@ -10,7 +10,7 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-3):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     stats = torch.load('checkpoints/norm_stats_hlf.pt', map_location=device)
-    history_len = stats['history_len'] # 5000
+    N_hist = stats['N_hist'] # 5000
     stride = stats['stride']           # 50
     k_points = stats['k_points']       # 100
     dim_cond = k_points * 3            # 300
@@ -18,7 +18,7 @@ def run(M=100, N=20000, dt=4.2e-3, Ts=3000000, initial_sigma_Y=1e-3):
     data = scipy.io.loadmat('data/NN_training_data.mat')['u']
     
     # 1. Cargar los 5,000 pasos de historia previa exacta a t=0
-    raw_history = torch.from_numpy(data[3:6, Ts - history_len : Ts].T).to(dtype=torch.float32, device=device)
+    raw_history = torch.from_numpy(data[3:6, Ts - N_hist : Ts].T).to(dtype=torch.float32, device=device)
     y_hist_norm = (raw_history - stats['y_mean'].to(device)) / stats['y_std'].to(device) # Shape: (5000, 3)
     
     # Buffer continuo de 5000 pasos para los M miembros: Shape (M, 5000, 3)

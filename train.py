@@ -8,9 +8,9 @@ from src.model import ConditionalVelocityField
 from src.flow_matching import ConditionalFlowMatcher
 
 def train():
-    history_len = 5000
+    N_hist = 5000
     stride = 50
-    k_points = history_len // stride  # 100
+    k_points = N_hist // stride  # 100
     dim_cond = k_points * 3           # 300
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -19,7 +19,7 @@ def train():
     train_loader, val_loader = get_dataloaders(
         'data/NN_training_data.mat', 
         batch_size=1024, 
-        history_len=history_len, 
+        N_hist=N_hist, 
         stride=stride
     )
 

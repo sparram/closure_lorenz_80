@@ -23,7 +23,7 @@ def run_level2_scatter_validation(
     x_mean, x_std = stats['x_mean'].cpu(), stats['x_std'].cpu()
     z_mean, z_std = stats['z_mean'].cpu(), stats['z_std'].cpu()
 
-    history_len = stats['history_len'] # 5000
+    N_hist = stats['N_hist'] # 5000
     stride = stats['stride']           # 50
     k_points = stats['k_points']       # 100
     dim_cond = k_points * 3            # 300
@@ -31,21 +31,21 @@ def run_level2_scatter_validation(
     # 2. Cargar Datos Reales con margen para el historial inicial
     raw_data = scipy.io.loadmat(file_path)['u']
     
-    start_idx = skip_transient - history_len
+    start_idx = skip_transient - N_hist
     end_idx = skip_transient + num_samples
     slice_data = raw_data[:, start_idx:end_idx]
 
-    # Extraer variables objetivo (num_samples,) desfasadas por history_len
-    X_true = torch.tensor(slice_data[0:3, history_len:].T, dtype=torch.float32)
-    Z_true = torch.tensor(slice_data[6:9, history_len:].T, dtype=torch.float32)
+    # Extraer variables objetivo (num_samples,) desfasadas por N_hist
+    X_true = torch.tensor(slice_data[0:3, N_hist:].T, dtype=torch.float32)
+    Z_true = torch.tensor(slice_data[6:9, N_hist:].T, dtype=torch.float32)
 
-    # Tensor Y continuo (history_len + num_samples, 3)
+    # Tensor Y continuo (N_hist + num_samples, 3)
     Y_raw = torch.tensor(slice_data[3:6].T, dtype=torch.float32, device=device)
     Y_norm = (Y_raw - y_mean) / y_std
 
     # 3. Vectorización del Historial de 300 Dims con .unfold()
-    # Y_norm.unfold(0, history_len, 1) genera ventanas deslizantes de tamaño 5000
-    unfolded_y = Y_norm.unfold(0, history_len, 1)[:num_samples]     # Shape: (num_samples, 3, 5000)
+    # Y_norm.unfold(0, N_hist, 1) genera ventanas deslizantes de tamaño 5000
+    unfolded_y = Y_norm.unfold(0, N_hist, 1)[:num_samples]     # Shape: (num_samples, 3, 5000)
     subsampled_y = unfolded_y[:, :, ::stride]                       # Shape: (num_samples, 3, 100)
     Y_cond_all = subsampled_y.transpose(1, 2).reshape(num_samples, -1) # Shape: (num_samples, 300)
 
