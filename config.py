@@ -5,7 +5,7 @@ device = 'cpu'
 # DATALOAD PARAMETERS
 idx_0 = 100000
 N_train = 5000000
-N_test = 5000
+N_test = 6000
 
 # CFM PARAMETERS
 K = 100           # Total memory points
@@ -21,4 +21,4 @@ batch_size = 1024
 # A POSTERIORI SIMULATION PARAMETERS
 dt = 4.2e-3 # 4.2e-3 MTU = 45 sec
 N_ens = 50
-sigma0 = 1e-3
+sigma0 = 1e-4

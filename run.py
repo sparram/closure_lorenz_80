@@ -4,6 +4,8 @@ from config import data_path, idx_0, N_train, N_test, N_ens, sigma0, K, stride, 
 import scipy.io
 import math
 
+torch.manual_seed(37)
+
 # PHYSICAL SYSTEM PARAMETERS
 a1, a2, a3 = 1.0, 1.0, 3.0
 v0 = 1.0 / 48.0
@@ -34,31 +36,41 @@ def run():
     data = scipy.io.loadmat(data_path)
     U_raw = data["u"]
 
-    split_idx = idx_0+N_train
-    X_test = U_raw[0:3][:, split_idx : split_idx + N_test]
-    Y_test = U_raw[3:6][:, split_idx : split_idx + N_test]
-    Z_test = U_raw[6:9][:, split_idx : split_idx + N_test]
-
     stats = torch.load("norm_stats.pt", map_location=device, weights_only=True)
     meanX, stdX = stats["meanX"], stats["stdX"]
     meanY, stdY = stats["meanY"], stats["stdY"]
     meanZ, stdZ = stats["meanZ"], stats["stdZ"]
+    
+    X_test = U_raw[0:3][:, idx_0 + N_train : idx_0 + N_train + N_test]
+    Y_test = U_raw[3:6][:, idx_0 + N_train : idx_0 + N_train + N_test]
+    Z_test = U_raw[6:9][:, idx_0 + N_train : idx_0 + N_train + N_test]
+    
+    X = torch.from_numpy(X_test)
+    Y = torch.from_numpy(Y_test)
+    Z = torch.from_numpy(Z_test)
+    
+    #X = (X - meanX[:, None]) / stdX[:, None]
+    #Y = (Y - meanY[:, None]) / stdY[:, None]
+    #Z = (Z - meanZ[:, None]) / stdZ[:, None]
 
+    X_in = Y.t()
+    print("X_in", X_in.shape)
     print("="*100)
-    Y_hist = U_raw[3:6][:, split_idx - K * stride : split_idx : stride]
-    print(Y_hist.shape)
-    Y_hist = torch.from_numpy(Y_hist).t()
-    print(Y_hist.shape)
+    start_idx = K * stride
+    Y0 = X_in[start_idx, :][None, :]
+    print("Y0", Y0.shape)
+    Y_pred = Y0 + sigma0 * torch.randn(N_ens, 3)
+    print("Y_pred", Y_pred.shape)
     
-    Y_hist = (Y_hist - meanY) / stdY
-    print(Y_hist.shape)
-    Y_hist = Y_hist.repeat(N_ens, 1, 1)
-    print(Y_hist.shape)
     print("="*100)
-    
-    Y0 = torch.from_numpy(Y_test)[:,0][:, None]
-    Y_pred = Y0 + sigma0 * torch.randn((3,N_ens))
-    print(Y_pred.shape)
+    Y_hist = X_in[0: start_idx : stride, :]
+    print("Y_hist", Y_hist.shape)
+    Y_hist = Y_hist.expand(N_ens, K, 3).clone()
+    print("Y_hist", Y_hist.shape)
+    Y_hist[:, -1, :] = Y0.clone()
+    print("Y_hist", Y_hist.shape)
+    #Y_hist = Y_hist.reshape(N_ens, 3*K)
+    print("Y_hist", Y_hist.shape)
         
     v_flow = FlowModel()
     weights = torch.load("cfm_model.pt", map_location=device, weights_only=True)
@@ -67,25 +79,29 @@ def run():
     
     X_sim = []
     for k in range(N_test):
-        X_in_test = Y_hist.reshape(N_ens, 3*K)
+        Y_hist_norm = (Y_hist - meanY[None,None,:]) / stdY[None, None, :]
+        X_in_test = Y_hist_norm.reshape(N_ens, 3*K)
         #print(Y_hist.shape, X_in_test.shape)
         X_in_test = X_in_test.to(dtype=torch.float32)
         
         X_out_test = cfm.sample(X_in_test)
         X_pred, Z_pred = X_out_test
-        
-        X_pred = X_pred.t() * stdX[:, None] + meanX[:, None]
-        Z_pred = Z_pred.t() * stdZ[:, None] + meanZ[:, None]
-
-        Y_pred = rk4_step_y(Y_pred.t(), X_pred.t(), Z_pred.t()).t()
-
         #print("FORMA:", X_pred.shape, Y_pred.shape, Z_pred.shape)
-        X_sim.append(torch.vstack([X_pred, Y_pred, Z_pred]))
-        #print(torch.vstack([X_pred, Y_pred, Z_pred]).shape)
 
-        Y_pred_norm = (Y_pred - meanY[:, None]) / stdY[:, None]
+        X_pred = X_pred * stdX[None, :] + meanX[None, :]
+        Z_pred = Z_pred * stdZ[None, :] + meanZ[None, :]
+
+        Y_pred = rk4_step_y(Y_pred, X_pred, Z_pred)
+        #print("FORMA:", X_pred.shape, Y_pred.shape, Z_pred.shape)
+
+        X_sim.append(torch.hstack([X_pred, Y_pred, Z_pred]))
+        #print(torch.hstack([X_pred, Y_pred, Z_pred]).shape)
+
+        #Y_pred_norm = (Y_pred - meanY[:, None]) / stdY[:, None]
+        #print(Y_hist.shape)
+        #print(Y_hist.shape, Y_hist[:, :-1, :].shape, Y_hist[:, 1:, :].shape)
         Y_hist[:, :-1, :] = Y_hist[:, 1:, :].clone()
-        Y_hist[:, -1, :] = Y_pred_norm.t()
+        Y_hist[:, -1, :] = Y_pred.clone()
     
         if k % 500 == 0:
             print(f"PROGRESS: {k} / {N_test}")
