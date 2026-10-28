@@ -2,7 +2,7 @@ import scipy.io
 import numpy as np
 import torch
 from torch.utils.data import Dataset, TensorDataset, DataLoader
-from config import data_path, idx_0, N_train, N_ens, K, stride
+from config import data_path, idx_0, N_train, batch_size, K, stride
 
 torch.manual_seed(37)
 
@@ -72,7 +72,7 @@ def save_norm_stats(stats):
 def get_dataloader():
     X_in, X_out = load_data()
     dataset = MemoryDataset(K=K, stride=stride)
-    train_loader = DataLoader(dataset, batch_size=N_ens, shuffle=True)
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return train_loader
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ hidden_dim = 8   # CFM Hidden layer dimension
 # TRAINING PARAMETERS
 lr=1e-3
 epochs = 5
+batch_size = 1024
 
 # A POSTERIORI SIMULATION PARAMETERS
 dt = 4.2e-3 # 4.2e-3 MTU = 45 sec
