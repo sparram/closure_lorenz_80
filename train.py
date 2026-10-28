@@ -31,7 +31,8 @@ def train():
         train_loss /= len(train_loader)
         print(f"Mean Epoch Loss: {train_loss}")
 
-    torch.save(v_flow.state_dict(), "cfm_model.pt")
+        if (epoch+1) % 5 == 0:
+            torch.save(v_flow.state_dict(), f"cfm_model_{epoch+1}epochs.pt")
     print("TRAINING COMPLETED!")
 
 if __name__ == "__main__":
