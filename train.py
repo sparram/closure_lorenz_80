@@ -5,7 +5,7 @@ import tqdm
 from config import lr, epochs, device
 
 def train():
-    train_loader = get_dataloader()
+    train_loader = get_dataloader(split="train")
     
     v_flow = FlowModel()
     v_flow.to(device)

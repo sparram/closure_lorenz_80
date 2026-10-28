@@ -1,6 +1,6 @@
 import torch
 from src.cfm import CFM, FlowModel
-from config import idx_0, N_train, N_test, N_ens, sigma0, device
+from config import data_path, idx_0, N_train, N_test, N_ens, sigma0, device
 import scipy.io
 import math
 
@@ -31,7 +31,7 @@ def rk4_step_y(y, x, z, dt=4.2e-3):
     return y + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
 
 def run():
-    data = scipy.io.loadmat("NHLR_data.mat")
+    data = scipy.io.loadmat(data_path)
     U_raw = data["u"]
     
     #idx_0 = 100000
@@ -45,7 +45,7 @@ def run():
     Y0 = torch.from_numpy(Y_test[:,0])[:, None]
     Y_pred = Y0 + sigma0 * torch.randn((3,N_ens))
 
-    stats = torch.load("norm_stats.pt", map_location=device)
+    stats = torch.load("norm_stats.pt", map_location=device, weights_only=True)
     meanX, stdX = stats["meanX"], stats["stdX"]
     meanY, stdY = stats["meanY"], stats["stdY"]
     meanZ, stdZ = stats["meanZ"], stats["stdZ"]
@@ -58,6 +58,10 @@ def run():
     X_sim = []
     for k in range(N_test):
         X_in_test = ( (Y_pred - meanY[:, None]) / stdY[:, None] ).t()
+
+        print("AQUI", X_in_test.shape, X_in_test.dtype)
+        X_in_test = X_in_test.to(dtype=torch.float32)
+        print("AQUI2", X_in_test.shape, X_in_test.dtype)
         
         X_out_test = cfm.sample(X_in_test)
         X_pred, Z_pred = X_out_test

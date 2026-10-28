@@ -2,40 +2,48 @@ import scipy.io
 import numpy as np
 import torch
 from torch.utils.data import Dataset, TensorDataset, DataLoader
-from config import data_path, idx_0, N_train, batch_size, K, stride
+from config import data_path, idx_0, N_train, N_test, batch_size, K, stride
 
 torch.manual_seed(37)
 
 class MemoryDataset(Dataset):
-    def __init__(self, K, stride):
-        X_in, X_out = load_data()
+    def __init__(self, split, K, stride):
+        self.split = split
+        X_in, X_out = load_data(split)
         self.X_in = X_in
         self.X_out = X_out
-        self.N_data = N_train
+        
         self.K = K
         self.stride = stride        
-    
+        
+        if self.split == "train":
+            self.N_data = N_train
+        if self.split == "test":
+            self.N_data = N_test
+            
     def __len__(self):
         return self.N_data - self.K * self.stride
         
     def __getitem__(self, idx):
         idx += self.K * self.stride
-        #idx = min(N_train-1, idx)
         Y_hist = self.X_in[idx - self.K * self.stride : idx : self.stride]
         X_in = Y_hist.reshape(-1)
         X_out = self.X_out[idx, :]
         #print(X_in.shape, X_out.shape)
         return X_in, X_out
         
-def load_data():
+def load_data(split):
     data = scipy.io.loadmat(data_path)
     U_raw = data["u"]
-    
-    #idx_0 = 100000
-    #N_train = 1000000
-    X_raw = U_raw[0:3][:, idx_0 : idx_0 + N_train]
-    Y_raw = U_raw[3:6][:, idx_0 : idx_0 + N_train]
-    Z_raw = U_raw[6:9][:, idx_0 : idx_0 + N_train]
+
+    if split == "train": 
+        X_raw = U_raw[0:3][:, idx_0 : idx_0 + N_train]
+        Y_raw = U_raw[3:6][:, idx_0 : idx_0 + N_train]
+        Z_raw = U_raw[6:9][:, idx_0 : idx_0 + N_train]
+    if split == "test":
+        X_raw = U_raw[0:3][:, idx_0 + N_train : idx_0 + N_train + N_test]
+        Y_raw = U_raw[3:6][:, idx_0 + N_train : idx_0 + N_train + N_test]
+        Z_raw = U_raw[6:9][:, idx_0 + N_train : idx_0 + N_train + N_test]
     
     X = torch.from_numpy(X_raw)
     Y = torch.from_numpy(Y_raw)
@@ -69,14 +77,16 @@ def save_norm_stats(stats):
     }
     torch.save(norm_stats, "norm_stats.pt")
 
-def get_dataloader():
-    X_in, X_out = load_data()
-    dataset = MemoryDataset(K=K, stride=stride)
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    return train_loader
+def get_dataloader(split):
+    dataset = MemoryDataset(split=split, K=K, stride=stride)
+    if split == "train":
+        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    if split == "test":
+        data_loader = DataLoader(dataset, batch_size=1, shuffle=True)
+    return data_loader
 
 if __name__ == "__main__":
-    train_loader = get_dataloader()
+    train_loader = get_dataloader(split="train")
     device = 'cpu'
     for input_batch, out_batch in train_loader:
         input_batch = input_batch.to(device, dtype=torch.float32)
