@@ -44,14 +44,14 @@ class CFM:
 
 # POSITIONAL EMBEDDING
 class TauPosEmb(nn.Module):
-    def __init__(self, time_emb_dim=1):
+    def __init__(self, time_emb_dim):
         super().__init__()
         self.dim = time_emb_dim
 
     def forward(self, x):
         device = x.device
         half_dim = self.dim // 2
-        emb = torch.exp(- torch.arange(half_dim, device=device) * torch.tensor(10000).log() / half_dim)
+        emb = torch.exp(- torch.arange(half_dim, device=device) * torch.tensor(10000).log() / (half_dim-1))
         emb = x[:, None] * emb[None, :]
         return torch.cat((emb.sin(), emb.cos()), dim=-1)
 
@@ -62,8 +62,6 @@ class FlowModel(nn.Module):
 
         self.time_mlp = nn.Sequential(
             TauPosEmb(time_emb_dim),
-            nn.Linear(time_emb_dim, time_emb_dim),
-            nn.SiLU(),
             nn.Linear(time_emb_dim, time_emb_dim),
             nn.SiLU()
         )
