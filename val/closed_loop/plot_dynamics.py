@@ -97,8 +97,8 @@ def plot_dynamics(
     os.makedirs('media/closed_loop', exist_ok=True)
     
     # Guardar en formato PDF (vectorial) y PNG (alta resolución)
-    plt.savefig("media/closed_loop/cfm_dynamics_comparison.pdf", bbox_inches='tight')
-    plt.savefig("media/closed_loop/cfm_dynamics_comparison.png", dpi=300, bbox_inches='tight')
+    plt.savefig("media/closed_loop/cfm_dynamics_comparison3.pdf", bbox_inches='tight')
+    plt.savefig("media/closed_loop/cfm_dynamics_comparison3.png", dpi=300, bbox_inches='tight')
     print("¡Gráficas guardadas con éxito en PDF y PNG!")
     plt.close()
 
