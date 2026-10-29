@@ -1,11 +1,13 @@
+import torch
+
 # GENERAL PARAMETERS
 data_path = "data/NN_training_data.mat"
-device = 'cpu'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # DATALOAD PARAMETERS
 idx_0 = 100000
 N_train = 5000000
-N_test = 15000
+N_test = 20000
 
 # CFM PARAMETERS
 K = 100           # Total memory points
@@ -20,5 +22,5 @@ batch_size = 1024
 
 # A POSTERIORI SIMULATION PARAMETERS
 dt = 4.2e-3 # 4.2e-3 MTU = 45 sec
-N_ens = 50
+N_ens = 20
 sigma0 = 1e-2

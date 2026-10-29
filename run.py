@@ -32,27 +32,30 @@ def rk4_step_y(y, x, z, dt=4.2e-3):
     k4 = dYdt(x, y + dt * k3, z)
     return y + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
 
+
 def run():
     torch.set_num_threads(4)
     
     # 1. Cargar estadísticas de normalización
-    stats = torch.load("norm_stats.pt", map_location=device, weights_only=True)
-    meanX, stdX = stats["meanX"].to(device, dtype=torch.float32), stats["stdX"].to(device, dtype=torch.float32)
-    meanY, stdY = stats["meanY"].to(device, dtype=torch.float32), stats["stdY"].to(device, dtype=torch.float32)
-    meanZ, stdZ = stats["meanZ"].to(device, dtype=torch.float32), stats["stdZ"].to(device, dtype=torch.float32)
+    stats = torch.load("norm_stats_hlf.pt", map_location=device, weights_only=True)
+    meanX, stdX = stats["x_mean"].to(device, dtype=torch.float32), stats["x_std"].to(device, dtype=torch.float32)
+    meanY, stdY = stats["y_mean"].to(device, dtype=torch.float32), stats["y_std"].to(device, dtype=torch.float32)
+    meanZ, stdZ = stats["z_mean"].to(device, dtype=torch.float32), stats["z_std"].to(device, dtype=torch.float32)
     
     # 2. Cargar datos desde MATLAB
     data = scipy.io.loadmat(data_path)
     U_raw = data["u"]
 
-    split_idx = idx_0 + N_train
-    split_idx = 5030476
+    # --- CAMBIO CLAVE AQUÍ PARA EMParejar el índice de inicio ---
+    test_start_idx = stats['split_idx'] # Esto lee el punto exacto de separación de entrenamiento
+    split_idx = test_start_idx + 230000  # Coincide exactamente con el primer script
+    
     N_hist = K * stride  # 5000 puntos de historial total
 
-    print(f"[Simulación] Cargando {N_hist} pasos de historia previa a t=0...")
+    print(f"[Simulación] Cargando {N_hist} pasos de historia previa a t=0 desde el índice {split_idx}...")
     
     # Extraer los N_hist pasos previos exactos para inicializar el buffer
-    raw_history = torch.from_numpy(U_raw[3:6, split_idx : split_idx + N_hist].T).to(dtype=torch.float32, device=device)
+    raw_history = torch.from_numpy(U_raw[3:6, split_idx - N_hist : split_idx].T).to(dtype=torch.float32, device=device)
     y_hist_norm = (raw_history - meanY) / stdY  # Forma: [N_hist, 3]
     
     # Buffer continuo de historial para los N_ens miembros: [N_ens, N_hist, 3]
@@ -60,11 +63,14 @@ def run():
 
     # Estado inicial Y0 (último punto de la historia en escala real + ruido estocástico)
     Y0_real = (y_hist_norm[-1].unsqueeze(0) * stdY) + meanY
+    
+    # Fijar la semilla justo antes del torch.randn para asegurar que el ruido inicial sea idéntico
+    torch.manual_seed(37)
     Y_pred = Y0_real.repeat(N_ens, 1) + sigma0 * torch.randn(N_ens, 3, device=device)
 
     # 3. Cargar el modelo CFM entrenado
     v_flow = FlowModel().to(device)
-    weights = torch.load("cfm_model.pt", map_location=device, weights_only=True)
+    weights = torch.load("cfm_model_hlf.pt", map_location=device, weights_only=True)
     v_flow.load_state_dict(weights)
     cfm = CFM(v_flow)
     v_flow.eval()
@@ -101,6 +107,11 @@ def run():
             ens_x[step] = X_pred
             ens_y[step] = Y_pred
             ens_z[step] = Z_pred
+
+            if step < 3: # Imprimir solo los primeros 3 pasos
+                print(f"--- PASO {step} ---")
+                print("Y_pred medio:", Y_pred.mean(dim=0))
+                print("X_pred primero:", X_pred[0, :3])
 
             if step % 500 == 0:
                 print(f"PROGRESS: {step} / {N_test} ({100 * step / N_test:.1f}%)")

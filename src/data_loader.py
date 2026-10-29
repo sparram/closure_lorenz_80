@@ -69,13 +69,13 @@ def get_dataloaders(batch_size=1024, history_len=5000, stride=50, split_idx=1344
     train_dataset = MemoryDataset(split="train", K=K, stride=stride)
     val_dataset = MemoryDataset(split="val", K=K, stride=stride, save_stats=False)
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)    
     return train_loader, val_loader
 
 if __name__ == "__main__":
     print("Generando lote de prueba - Versión Unificada (cfm)...")
-    train_loader, _ = get_dataloaders(batch_size=1024)
+    _, train_loader = get_dataloaders(batch_size=1024)
     
     # Tomar el primer lote
     inputs, targets = next(iter(train_loader))
