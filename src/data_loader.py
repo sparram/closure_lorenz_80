@@ -2,96 +2,86 @@ import scipy.io
 import numpy as np
 import torch
 from torch.utils.data import Dataset, TensorDataset, DataLoader
-from config import data_path, idx_0, N_train, N_test, batch_size, K, stride
+from config import data_path, idx_0, N_train, N_test, batch_size, K, stride, dt
 
 torch.manual_seed(37)
 
 class MemoryDataset(Dataset):
-    def __init__(self, split, K, stride):
-        self.split = split
-        X_in, X_out = load_data(split)
-        self.X_in = X_in
-        self.X_out = X_out
+    def __init__(self, split, K, stride, t_transient = 10.0, split_idx = 1344000, val_points=576000, history_len = 5000, save_stats=True):
+
+        data = scipy.io.loadmat(data_path)
+        U_raw = data["u"]
+
+        idx_start = int(t_transient / dt)
+        X_raw = U_raw[0:3][:, idx_start:].T
+        Y_raw = U_raw[3:6][:, idx_start:].T
+        Z_raw = U_raw[6:9][:, idx_start:].T
+
+        X_raw = torch.tensor(X_raw, dtype=torch.float32)
+        Y_raw = torch.tensor(Y_raw, dtype=torch.float32)
+        Z_raw = torch.tensor(Z_raw, dtype=torch.float32)
+
+        X_train = X_raw[:split_idx]
+        Y_train = Y_raw[:split_idx]
+        Z_train = Z_raw[:split_idx]
+
+        meanX = X_train.mean(dim=0, keepdim=True)
+        meanY = Y_train.mean(dim=0, keepdim=True)
+        meanZ = Z_train.mean(dim=0, keepdim=True)
+
+        stdX = X_train.std(dim=0, keepdim=True)
+        stdY = Y_train.std(dim=0, keepdim=True)
+        stdZ = Z_train.std(dim=0, keepdim=True)
         
-        self.K = K
-        self.stride = stride        
-        
-        if self.split == "train":
-            self.N_data = N_train
-        if self.split == "test":
-            self.N_data = N_test
+        if save_stats and split == "train":    
+            norm_stats={
+                "meanX" : meanX, "stdX" : stdX,
+                "meanY" : meanY, "stdY" : stdY,
+                "meanZ" : meanZ, "stdZ" : stdZ
+            }
+            torch.save(norm_stats, "norm_stats.pt")
+
+        if split == "train":
+            self.X_norm = (X_raw - meanX) / stdX
+            self.Y_norm = (Y_raw - meanY) / stdY
+            self.Z_norm = (Z_raw - meanZ) / stdZ
+        elif split == "val":
+            end_idx = min(split_idx + val_points, len(Y_raw))
+            self.X_norm = (X_raw[split_idx - history_len : end_idx] - meanX) / stdX
+            self.Y_norm = (Y_raw[split_idx - history_len : end_idx] - meanY) / stdY
+            self.Z_norm = (Z_raw[split_idx - history_len : end_idx] - meanZ) / stdZ
+
+        self.history_len = history_len
+        self.stride = stride
             
     def __len__(self):
-        return self.N_data - self.K * self.stride
+        return len(self.Y_norm) - self.history_len
         
     def __getitem__(self, idx):
-        idx += self.K * self.stride
-        Y_hist = self.X_in[idx - self.K * self.stride : idx : self.stride]
+        idx_adj = idx + self.history_len
+        Y_hist = self.Y_norm[idx_adj - self.history_len : idx_adj : self.stride]
         X_in = Y_hist.reshape(-1)
-        X_out = self.X_out[idx, :]
+        X_out = torch.cat([self.X_norm[idx_adj, :], self.Z_norm[idx_adj, :]])
         #print(X_in.shape, X_out.shape)
         return X_in, X_out
         
-def load_data(split):
-    data = scipy.io.loadmat(data_path)
-    U_raw = data["u"]
-
-    if split == "train": 
-        X_raw = U_raw[0:3][:, idx_0 : idx_0 + N_train]
-        Y_raw = U_raw[3:6][:, idx_0 : idx_0 + N_train]
-        Z_raw = U_raw[6:9][:, idx_0 : idx_0 + N_train]
-    if split == "test":
-        X_raw = U_raw[0:3][:, idx_0 + N_train : idx_0 + N_train + N_test]
-        Y_raw = U_raw[3:6][:, idx_0 + N_train : idx_0 + N_train + N_test]
-        Z_raw = U_raw[6:9][:, idx_0 + N_train : idx_0 + N_train + N_test]
+def get_dataloaders(batch_size=1024, history_len=5000, stride=50, split_idx=1344000, val_points=576000):
+    train_dataset = MemoryDataset(split="train", K=K, stride=stride)
+    val_dataset = MemoryDataset(split="val", K=K, stride=stride, save_stats=False)
     
-    X = torch.from_numpy(X_raw)
-    Y = torch.from_numpy(Y_raw)
-    Z = torch.from_numpy(Z_raw)
-    
-    meanX, stdX = X.mean(dim=-1), X.std(dim=-1)
-    meanY, stdY = Y.mean(dim=-1), Y.std(dim=-1)
-    meanZ, stdZ = Z.mean(dim=-1), Z.std(dim=-1)
-
-    stats = [meanX, stdX, meanY, stdY, meanZ, stdZ]
-    save_norm_stats(stats)
-    
-    X = (X - meanX[:, None]) / stdX[:, None]
-    Y = (Y - meanY[:, None]) / stdY[:, None]
-    Z = (Z - meanZ[:, None]) / stdZ[:, None]
-    
-    X_in = Y.t()
-    X_out = torch.cat([X, Z], dim=0).t()
-    print(f"Datashape - In : {X_in.shape}, Out: {X_out.shape}")
-            
-    return X_in, X_out
-
-def save_norm_stats(stats):
-    meanX, stdX = stats[0:2]
-    meanY, stdY = stats[2:4]
-    meanZ, stdZ = stats[4:6]
-    norm_stats={
-        "meanX" : meanX, "stdX" : stdX,
-        "meanY" : meanY, "stdY" : stdY,
-        "meanZ" : meanZ, "stdZ" : stdZ
-    }
-    torch.save(norm_stats, "norm_stats.pt")
-
-def get_dataloader(split):
-    dataset = MemoryDataset(split=split, K=K, stride=stride)
-    if split == "train":
-        data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    if split == "test":
-        data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
-    return data_loader
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)    
+    return train_loader, val_loader
 
 if __name__ == "__main__":
-    train_loader = get_dataloader(split="train")
-    device = 'cpu'
-    for input_batch, out_batch in train_loader:
-        input_batch = input_batch.to(device, dtype=torch.float32)
-        out_batch = out_batch.to(device, dtype=torch.float32)
-        print("BATCH:", input_batch.shape, out_batch.shape)
-        break
-        
-    print("CHECK!")
+    print("Generando lote de prueba - Versión Unificada (cfm)...")
+    train_loader, _ = get_dataloaders(batch_size=1024)
+    
+    # Tomar el primer lote
+    inputs, targets = next(iter(train_loader))
+    
+    print(f"Inputs shape: {inputs.shape}, Targets shape: {targets.shape}")
+    
+    # Guardar en un archivo temporal
+    torch.save({'inputs': inputs, 'targets': targets}, 'batch_v2.pt')
+    print("¡Guardado en 'batch_v2.pt'!")
