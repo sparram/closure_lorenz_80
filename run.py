@@ -36,94 +36,63 @@ def rk4_step_y(y, x, z, dt=4.2e-3):
 def run():
     torch.set_num_threads(4)
     
-    # 1. Cargar estadísticas de normalización
     stats = torch.load("norm_stats_hlf.pt", map_location=device, weights_only=True)
     meanX, stdX = stats["x_mean"].to(device, dtype=torch.float32), stats["x_std"].to(device, dtype=torch.float32)
     meanY, stdY = stats["y_mean"].to(device, dtype=torch.float32), stats["y_std"].to(device, dtype=torch.float32)
     meanZ, stdZ = stats["z_mean"].to(device, dtype=torch.float32), stats["z_std"].to(device, dtype=torch.float32)
     
-    # 2. Cargar datos desde MATLAB
     data = scipy.io.loadmat(data_path)
     U_raw = data["u"]
 
-    # --- CAMBIO CLAVE AQUÍ PARA EMParejar el índice de inicio ---
-    test_start_idx = stats['split_idx'] # Esto lee el punto exacto de separación de entrenamiento
-    split_idx = test_start_idx + 230000  # Coincide exactamente con el primer script
+    test_start_idx = stats['split_idx']
+    split_idx = test_start_idx + 230000 # We traslate the test idx 230000 units to capture a more interesting part of the attractor
     
-    N_hist = K * stride  # 5000 puntos de historial total
+    N_hist = K * stride
+    histY = torch.from_numpy(U_raw[3:6, split_idx - N_hist : split_idx].T)
+    histY = histY.to(dtype=torch.float32, device=device)
+    
+    histY_norm = (histY - meanY) / stdY    
+    hist_buffer = histY_norm.unsqueeze(0).repeat(N_ens, 1, 1)
 
-    print(f"[Simulación] Cargando {N_hist} pasos de historia previa a t=0 desde el índice {split_idx}...")
-    
-    # Extraer los N_hist pasos previos exactos para inicializar el buffer
-    raw_history = torch.from_numpy(U_raw[3:6, split_idx - N_hist : split_idx].T).to(dtype=torch.float32, device=device)
-    y_hist_norm = (raw_history - meanY) / stdY  # Forma: [N_hist, 3]
-    
-    # Buffer continuo de historial para los N_ens miembros: [N_ens, N_hist, 3]
-    history_buffer = y_hist_norm.unsqueeze(0).repeat(N_ens, 1, 1)
-
-    # Estado inicial Y0 (último punto de la historia en escala real + ruido estocástico)
-    Y0_real = (y_hist_norm[-1].unsqueeze(0) * stdY) + meanY
-    
-    # Fijar la semilla justo antes del torch.randn para asegurar que el ruido inicial sea idéntico
     torch.manual_seed(37)
-    Y_pred = Y0_real.repeat(N_ens, 1) + sigma0 * torch.randn(N_ens, 3, device=device)
+    Y0 = (histY_norm[-1].unsqueeze(0) * stdY) + meanY
+    Y_pred = Y0.repeat(N_ens, 1) + sigma0 * torch.randn(N_ens, 3, device=device)
 
-    # 3. Cargar el modelo CFM entrenado
     v_flow = FlowModel().to(device)
     weights = torch.load("cfm_model_hlf.pt", map_location=device, weights_only=True)
     v_flow.load_state_dict(weights)
     cfm = CFM(v_flow)
     v_flow.eval()
 
-    # Tensores para almacenar la simulación completa
-    ens_x = torch.zeros(N_test, N_ens, 3, dtype=torch.float32, device=device)
-    ens_y = torch.zeros(N_test, N_ens, 3, dtype=torch.float32, device=device)
-    ens_z = torch.zeros(N_test, N_ens, 3, dtype=torch.float32, device=device)
-
-    print(f"[Simulación] Integrando {N_test} pasos en bucle cerrado con N_ens = {N_ens}...")
+    ensX = torch.zeros(N_test, N_ens, 3, dtype=torch.float32, device=device)
+    ensY = torch.zeros(N_test, N_ens, 3, dtype=torch.float32, device=device)
+    ensZ = torch.zeros(N_test, N_ens, 3, dtype=torch.float32, device=device)
 
     with torch.no_grad():
         for step in range(N_test):
-            # A. Extraer submuestreo con el stride y aplanar a [N_ens, 3*K]
-            y_cond_input = history_buffer[:, ::stride, :].reshape(N_ens, 3 * K)
+            Y_cond = hist_buffer[:, ::stride, :].reshape(N_ens, 3 * K)
             
-            # B. Muestrear CFM (X, Z normalizados)
-            X_out_test = cfm.sample(y_cond_input)
-            X_pred_norm, Z_pred_norm = X_out_test
-
-            # C. Desnormalizar a escala física real para el RK4
+            CFM_pred = cfm.sample(Y_cond)
+            X_pred_norm, Z_pred_norm = CFM_pred
             X_pred = X_pred_norm * stdX + meanX
             Z_pred = Z_pred_norm * stdZ + meanZ
 
-            # D. Integración física con RK4
             Y_pred = rk4_step_y(Y_pred, X_pred, Z_pred)
 
-            # E. Actualizar el buffer deslizante: desplazar y agregar el nuevo Y normalizado
-            yn_norm = (Y_pred - meanY) / stdY
-            history_buffer[:, :-1, :] = history_buffer[:, 1:, :].clone()
-            history_buffer[:, -1, :] = yn_norm  
+            Y_pred_norm = (Y_pred - meanY) / stdY
+            hist_buffer[:, :-1, :] = hist_buffer[:, 1:, :].clone()
+            hist_buffer[:, -1, :] = Y_pred_norm  
 
-            # Guardar en tensores temporales
-            ens_x[step] = X_pred
-            ens_y[step] = Y_pred
-            ens_z[step] = Z_pred
-
-            if step < 3: # Imprimir solo los primeros 3 pasos
-                print(f"--- PASO {step} ---")
-                print("Y_pred medio:", Y_pred.mean(dim=0))
-                print("X_pred primero:", X_pred[0, :3])
+            ensX[step] = X_pred
+            ensY[step] = Y_pred
+            ensZ[step] = Z_pred
 
             if step % 500 == 0:
                 print(f"PROGRESS: {step} / {N_test} ({100 * step / N_test:.1f}%)")
         
-    # Apilar todo en un único tensor final de forma [N_test, N_ens, 9] (compatible con tu plot_sim.py)
-    X_sim = torch.stack([ens_x, ens_y, ens_z], dim=2) # O torch.cat según prefieras el orden de columnas
-    # Nota: Si tu plot_sim.py espera concatenar X, Y, Z por columnas [N_test, N_ens, 9]:
-    X_sim = torch.cat([ens_x, ens_y, ens_z], dim=-1)
-
-    print("Forma final del tensor guardado:", X_sim.shape)
+    X_sim = torch.cat([ensX, ensY, ensZ], dim=-1)
     torch.save(X_sim, "cfm_sim.pt")
-    print("¡Simulación completada y guardada con éxito en 'cfm_sim.pt'!")
+    print("A POSTERIORI SIMULATION COMPLETED!")
 
 if __name__ == "__main__":
     run()
