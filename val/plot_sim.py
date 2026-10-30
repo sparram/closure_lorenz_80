@@ -8,15 +8,19 @@ def plot():
     U_raw = data["u"]
 
     split_idx = 5030476
-    X_sim = torch.load("cfm_sim.pt", map_location=device, weights_only=True)
-    N_sim = X_sim.shape[0]
+    U_pred = torch.load("cfm_sim.pt", map_location=device, weights_only=True)
+    N_sim = U_pred.shape[0]
     
     X_test = U_raw[0:3][:, split_idx : split_idx + N_sim]
     Y_test = U_raw[3:6][:, split_idx : split_idx + N_sim]
     Z_test = U_raw[6:9][:, split_idx : split_idx + N_sim]
     
     U_test = torch.cat([torch.from_numpy(X_test), torch.from_numpy(Y_test), torch.from_numpy(Z_test)], dim=0)
-    
+
+    dynamics(U_pred, U_test, split_idx, N_sim)
+
+
+def dynamics(U_pred, U_test, split_idx, N_sim):
     plt.rcParams.update({
         'font.size': 11,
         'axes.labelsize': 12,
@@ -37,7 +41,7 @@ def plot():
         ax = axes[row, col]
 
         u_real = U_test[i].cpu().numpy()
-        u_pred = X_sim[:, :, i]
+        u_pred = U_pred[:, :, i]
         
         u_mean = u_pred.mean(dim=1).cpu().numpy()
         u_std = u_pred.std(dim=1).cpu().numpy()
@@ -59,6 +63,8 @@ def plot():
     #plt.savefig('media/closed_loop/ensemble_validation_3x3.png', dpi=300, bbox_inches='tight')
     print("Plotting successful!")
     plt.show()
+
+
 
 if __name__ == "__main__":
     plot()
