@@ -36,7 +36,7 @@ def rk4_step_y(y, x, z, dt=4.2e-3):
 def run():
     torch.set_num_threads(4)
     
-    stats = torch.load("norm_stats_hlf.pt", map_location=device, weights_only=True)
+    stats = torch.load("norm_stats.pt", map_location=device, weights_only=True)
     meanX, stdX = stats["x_mean"].to(device, dtype=torch.float32), stats["x_std"].to(device, dtype=torch.float32)
     meanY, stdY = stats["y_mean"].to(device, dtype=torch.float32), stats["y_std"].to(device, dtype=torch.float32)
     meanZ, stdZ = stats["z_mean"].to(device, dtype=torch.float32), stats["z_std"].to(device, dtype=torch.float32)
@@ -59,7 +59,7 @@ def run():
     Y_pred = Y0.repeat(N_ens, 1) + sigma0 * torch.randn(N_ens, 3, device=device)
 
     v_flow = FlowModel().to(device)
-    weights = torch.load("cfm_model_hlf.pt", map_location=device, weights_only=True)
+    weights = torch.load("cfm_model.pt", map_location=device, weights_only=True)
     v_flow.load_state_dict(weights)
     cfm = CFM(v_flow)
     v_flow.eval()
