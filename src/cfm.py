@@ -27,6 +27,7 @@ class CFM:
 
     @torch.no_grad()
     def sample(self, input_samples, N_steps=cfm_steps):
+        # input_samples.shape : (N_samples, 3*K)
         self.model.eval()
         N_ens = input_samples.shape[0]
         device = input_samples.device
@@ -41,6 +42,38 @@ class CFM:
 
         x_hat, z_hat = z_tau[:, 0:3], z_tau[:, 3:6]
         return x_hat, z_hat
+
+    @torch.no_grad()
+    def tail_sample(self, input_samples, N_noise=32, N_steps=cfm_steps):
+        # input_samples.shape : (N_samples, 3*K)
+        self.model.eval()
+        N_ens = input_samples.shape[0]
+        device = input_samples.device
+
+        ext_samples = input_samples.repeat_interleave(N_noise, dim=0)
+        
+        z_tau = torch.randn(N_ens * N_noise, 6, device=device)
+        d_tau = 1.0 / N_steps
+
+        for step in range(N_steps):
+            tau = torch.full((N_ens * N_noise, 1), step * d_tau, device=device)
+            v_flow = self.model(z_tau, tau, ext_samples)
+            z_tau += d_tau * v_flow
+
+        x_hat, z_hat = z_tau[:, 0:3], z_tau[:, 3:6]
+
+        # IMPORTANCE SAMPLING: EVT THEORY
+        R_ind = torch.norm(torch.cat([x_hat, z_hat], dim=-1), dim=-1)
+        R_ind = (R_ind - R_ind.mean()) / (R_ind.std() + 1e-8)
+
+        beta = 5.0
+        weights = torch.exp(beta * R_ind)
+        weights = weights / weights.sum()
+    
+        sample_idxs = torch.multinomial(weights, num_samples=N_ens, replacement=True)
+
+        return x_hat[sample_idxs], z_hat[sample_idxs]
+
 
 # POSITIONAL EMBEDDING
 class TauPosEmb(nn.Module):

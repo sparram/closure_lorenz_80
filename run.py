@@ -22,7 +22,7 @@ def dYdt(x, y, z):
     dy1dt = (- a3 * b3 * x2 * y3 - a2 * b2 * y2 * x3 + c * (a3 - a2) * y2 * y3 - a1 * x1 - v0 * a1**2 * y1) / a1
     dy2dt = (- a1 * b1 * x3 * y1 - a3 * b3 * y3 * x1 + c * (a1 - a3) * y3 * y1 - a2 * x2 - v0 * a2**2 * y2) / a2
     dy3dt = (- a2 * b2 * x1 * y2 - a1 * b1 * y1 * x2 + c * (a2 - a1) * y1 * y2 - a3 * x3 - v0 * a3**2 * y3) / a3
-
+    
     return torch.stack([dy1dt, dy2dt, dy3dt], dim=-1)
 
 def rk4_step_y(y, x, z, dt=4.2e-3):
@@ -31,7 +31,6 @@ def rk4_step_y(y, x, z, dt=4.2e-3):
     k3 = dYdt(x, y + 0.5 * dt * k2, z)
     k4 = dYdt(x, y + dt * k3, z)
     return y + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
-
 
 def run():
     torch.set_num_threads(4)
@@ -72,7 +71,7 @@ def run():
         for step in range(N_test):
             Y_cond = hist_buffer[:, ::stride, :].reshape(N_ens, 3 * K)
             
-            CFM_pred = cfm.sample(Y_cond)
+            CFM_pred = cfm.tail_sample(Y_cond)
             X_pred_norm, Z_pred_norm = CFM_pred
             X_pred = X_pred_norm * stdX + meanX
             Z_pred = Z_pred_norm * stdZ + meanZ
