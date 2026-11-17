@@ -44,14 +44,17 @@ class CFM:
         return x_hat, z_hat
 
     @torch.no_grad()
-    def tail_sample(self, input_samples, N_noise=32, N_steps=cfm_steps):
-        # input_samples.shape : (N_samples, 3*K)
+    def tail_sample(self, input_samples, N_noise=32, N_steps=cfm_steps, alpha=1.0, length_scale=0.5):
+        """
+        Diversity-Enhancing Rejection Sampling (Rejection + Greedy k-DPP)
+        input_samples.shape : (N_ens, 3*K)
+        """
         self.model.eval()
         N_ens = input_samples.shape[0]
         device = input_samples.device
 
+        # 1. Generar pool de candidatos en paralelo: (N_ens * N_noise, 6)
         ext_samples = input_samples.repeat_interleave(N_noise, dim=0)
-        
         z_tau = torch.randn(N_ens * N_noise, 6, device=device)
         d_tau = 1.0 / N_steps
 
@@ -60,20 +63,68 @@ class CFM:
             v_flow = self.model(z_tau, tau, ext_samples)
             z_tau += d_tau * v_flow
 
-        x_hat, z_hat = z_tau[:, 0:3], z_tau[:, 3:6]
+        states = z_tau  # (M, 6) donde M = N_ens * N_noise
+        
+        # 2. REJECTION SAMPLING (Filtro hacia la cola extrema)
+        R_ind = torch.norm(states, dim=-1)
+        R_norm = (R_ind - R_ind.mean()) / (R_ind.std() + 1e-8)
+        
+        # Probabilidad de aceptación suave hacia eventos extremos (evita colapso)
+        # Mantiene también parte de la distribución base para no perder soporte
+        log_prob = alpha * R_norm
+        accept_prob = torch.exp(log_prob - log_prob.max())
+        # Mezcla 70% cola / 30% uniforme para asegurar cobertura global + extremos
+        accept_prob = 0.7 * accept_prob + 0.3 * torch.ones_like(accept_prob)
+        
+        u = torch.rand_like(accept_prob)
+        accepted_mask = u < accept_prob
+        
+        # Salvaguarda: asegurar al menos N_ens candidatos aceptados
+        if accepted_mask.sum() < N_ens:
+            _, top_idx = torch.topk(R_norm, k=min(N_ens * 4, states.shape[0]))
+            pool_states = states[top_idx]
+            pool_R = R_norm[top_idx]
+        else:
+            pool_states = states[accepted_mask]
+            pool_R = R_norm[accepted_mask]
 
-        # IMPORTANCE SAMPLING: EVT THEORY
-        R_ind = torch.norm(torch.cat([x_hat, z_hat], dim=-1), dim=-1)
-        R_ind = (R_ind - R_ind.mean()) / (R_ind.std() + 1e-8)
+        # 3. GREEDY k-DPP (Selección con repulsión para maximizar diversidad en el ensamble)
+        # L_ij = q_i * K(s_i, s_j) * q_j
+        M_pool = pool_states.shape[0]
+        q = torch.exp(0.5 * alpha * pool_R)  # Calidad (energía) de cada candidato
+        
+        dist_sq = torch.cdist(pool_states, pool_states, p=2.0) ** 2
+        K_sim = torch.exp(-dist_sq / (2.0 * length_scale ** 2))
+        L = (q[:, None] * K_sim) * q[None, :]  # Matriz de kernel DPP (M_pool, M_pool)
 
-        beta = 5.0
-        weights = torch.exp(beta * R_ind)
-        weights = weights / weights.sum()
-    
-        sample_idxs = torch.multinomial(weights, num_samples=N_ens, replacement=True)
+        # Algoritmo Greedy k-DPP (Chen et al., NeurIPS - O(M_pool * N_ens^2) ultra rápido)
+        selected_idxs = []
+        diag_L = torch.diagonal(L).clone()
+        cis = torch.zeros((N_ens, M_pool), device=device)
 
-        return x_hat[sample_idxs], z_hat[sample_idxs]
+        for k in range(N_ens):
+            # Elegir el candidato que maximiza el determinante marginal (calidad * diversidad)
+            idx = torch.argmax(diag_L).item()
+            selected_idxs.append(idx)
+            
+            if k == N_ens - 1:
+                break
+                
+            # Actualizar proyección ortogonal para penalizar candidatos cercanos al recién elegido
+            e_i = L[idx, :]
+            if k > 0:
+                proj = torch.mv(cis[:k, :].T, cis[:k, idx])
+                e_i = e_i - proj
+            
+            norm_val = torch.sqrt(torch.clamp(diag_L[idx], min=1e-12))
+            cis[k, :] = e_i / norm_val
+            diag_L = diag_L - cis[k, :] ** 2
+            diag_L[selected_idxs] = -float('inf')  # Evitar reemplazo (cero clonación)
 
+        selected_idxs = torch.tensor(selected_idxs, device=device, dtype=torch.long)
+        chosen = pool_states[selected_idxs]
+        
+        return chosen[:, 0:3], chosen[:, 3:6]
 
 # POSITIONAL EMBEDDING
 class TauPosEmb(nn.Module):
