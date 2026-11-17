@@ -7,7 +7,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # DATALOAD PARAMETERS
 idx_0 = 100000
 N_train = 5000000
-N_test = 10000
+N_test = 100000
 
 # CFM PARAMETERS
 K = 100           # Total memory points

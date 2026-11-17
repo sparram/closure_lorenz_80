@@ -47,11 +47,14 @@ class CFM:
     def tail_sample(self, input_samples, N_noise=32, N_steps=cfm_steps, alpha=1.0, length_scale=0.5):
         """
         Diversity-Enhancing Rejection Sampling (Rejection + Greedy k-DPP)
-        input_samples.shape : (N_ens, 3*K)
+        Devuelve: x_hat, z_hat, y parent_idxs para mantener coherencia en Y_pred y hist_buffer
         """
         self.model.eval()
         N_ens = input_samples.shape[0]
         device = input_samples.device
+
+        # Rastrear a qué miembro original del ensamble pertenece cada candidato
+        parent_ids = torch.arange(N_ens, device=device).repeat_interleave(N_noise)
 
         # 1. Generar pool de candidatos en paralelo: (N_ens * N_noise, 6)
         ext_samples = input_samples.repeat_interleave(N_noise, dim=0)
@@ -69,11 +72,8 @@ class CFM:
         R_ind = torch.norm(states, dim=-1)
         R_norm = (R_ind - R_ind.mean()) / (R_ind.std() + 1e-8)
         
-        # Probabilidad de aceptación suave hacia eventos extremos (evita colapso)
-        # Mantiene también parte de la distribución base para no perder soporte
         log_prob = alpha * R_norm
         accept_prob = torch.exp(log_prob - log_prob.max())
-        # Mezcla 70% cola / 30% uniforme para asegurar cobertura global + extremos
         accept_prob = 0.7 * accept_prob + 0.3 * torch.ones_like(accept_prob)
         
         u = torch.rand_like(accept_prob)
@@ -84,33 +84,31 @@ class CFM:
             _, top_idx = torch.topk(R_norm, k=min(N_ens * 4, states.shape[0]))
             pool_states = states[top_idx]
             pool_R = R_norm[top_idx]
+            pool_parents = parent_ids[top_idx]
         else:
             pool_states = states[accepted_mask]
             pool_R = R_norm[accepted_mask]
+            pool_parents = parent_ids[accepted_mask]
 
-        # 3. GREEDY k-DPP (Selección con repulsión para maximizar diversidad en el ensamble)
-        # L_ij = q_i * K(s_i, s_j) * q_j
+        # 3. GREEDY k-DPP (Selección con repulsión para maximizar diversidad)
         M_pool = pool_states.shape[0]
-        q = torch.exp(0.5 * alpha * pool_R)  # Calidad (energía) de cada candidato
+        q = torch.exp(0.5 * alpha * pool_R)
         
         dist_sq = torch.cdist(pool_states, pool_states, p=2.0) ** 2
         K_sim = torch.exp(-dist_sq / (2.0 * length_scale ** 2))
-        L = (q[:, None] * K_sim) * q[None, :]  # Matriz de kernel DPP (M_pool, M_pool)
+        L = (q[:, None] * K_sim) * q[None, :]
 
-        # Algoritmo Greedy k-DPP (Chen et al., NeurIPS - O(M_pool * N_ens^2) ultra rápido)
         selected_idxs = []
         diag_L = torch.diagonal(L).clone()
         cis = torch.zeros((N_ens, M_pool), device=device)
 
         for k in range(N_ens):
-            # Elegir el candidato que maximiza el determinante marginal (calidad * diversidad)
             idx = torch.argmax(diag_L).item()
             selected_idxs.append(idx)
             
             if k == N_ens - 1:
                 break
                 
-            # Actualizar proyección ortogonal para penalizar candidatos cercanos al recién elegido
             e_i = L[idx, :]
             if k > 0:
                 proj = torch.mv(cis[:k, :].T, cis[:k, idx])
@@ -119,12 +117,14 @@ class CFM:
             norm_val = torch.sqrt(torch.clamp(diag_L[idx], min=1e-12))
             cis[k, :] = e_i / norm_val
             diag_L = diag_L - cis[k, :] ** 2
-            diag_L[selected_idxs] = -float('inf')  # Evitar reemplazo (cero clonación)
+            diag_L[selected_idxs] = -float('inf')
 
         selected_idxs = torch.tensor(selected_idxs, device=device, dtype=torch.long)
         chosen = pool_states[selected_idxs]
+        chosen_parents = pool_parents[selected_idxs]
         
-        return chosen[:, 0:3], chosen[:, 3:6]
+        return chosen[:, 0:3], chosen[:, 3:6], chosen_parents
+
 
 # POSITIONAL EMBEDDING
 class TauPosEmb(nn.Module):

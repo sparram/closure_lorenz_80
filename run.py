@@ -72,7 +72,12 @@ def run():
             Y_cond = hist_buffer[:, ::stride, :].reshape(N_ens, 3 * K)
             
             CFM_pred = cfm.tail_sample(Y_cond)
-            X_pred_norm, Z_pred_norm = CFM_pred
+            X_pred_norm, Z_pred_norm, parent_idxs = CFM_pred
+            
+            # Sincronizar Y_pred e hist_buffer con los miembros elegidos (como en Particle Filtering)
+            Y_pred = Y_pred[parent_idxs]
+            hist_buffer = hist_buffer[parent_idxs]
+
             X_pred = X_pred_norm * stdX + meanX
             Z_pred = Z_pred_norm * stdZ + meanZ
 
