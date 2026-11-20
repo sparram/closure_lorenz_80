@@ -44,19 +44,19 @@ class CFM:
         return x_hat, z_hat
 
     @torch.no_grad()
-    def tail_sample(self, input_samples, N_noise=32, N_steps=cfm_steps, alpha=1.0, length_scale=0.5):
+    def tail_sample(self, input_samples, N_noise=32, N_steps=cfm_steps, alpha=0.1, length_scale=1.25):
         """
         Diversity-Enhancing Rejection Sampling (Rejection + Greedy k-DPP)
-        Devuelve: x_hat, z_hat, y parent_idxs para mantener coherencia en Y_pred y hist_buffer
+        Devuelve: x_hat, z_hat y parent_idxs para mantener coherencia física en Y_pred y hist_buffer.
         """
         self.model.eval()
         N_ens = input_samples.shape[0]
         device = input_samples.device
 
-        # Rastrear a qué miembro original del ensamble pertenece cada candidato
+        # Rastrear el miembro padre original de cada candidato: (N_ens * N_noise,)
         parent_ids = torch.arange(N_ens, device=device).repeat_interleave(N_noise)
 
-        # 1. Generar pool de candidatos en paralelo: (N_ens * N_noise, 6)
+        # 1. Generar candidatos en paralelo: (N_ens * N_noise, 6)
         ext_samples = input_samples.repeat_interleave(N_noise, dim=0)
         z_tau = torch.randn(N_ens * N_noise, 6, device=device)
         d_tau = 1.0 / N_steps
@@ -66,22 +66,22 @@ class CFM:
             v_flow = self.model(z_tau, tau, ext_samples)
             z_tau += d_tau * v_flow
 
-        states = z_tau  # (M, 6) donde M = N_ens * N_noise
-        
-        # 2. REJECTION SAMPLING (Filtro hacia la cola extrema)
+        states = z_tau  # (M, 6)
+
+        # 2. REJECTION SAMPLING (Sesgo suave hacia la cola extrema + soporte base)
         R_ind = torch.norm(states, dim=-1)
         R_norm = (R_ind - R_ind.mean()) / (R_ind.std() + 1e-8)
-        
+
         log_prob = alpha * R_norm
         accept_prob = torch.exp(log_prob - log_prob.max())
         accept_prob = 0.7 * accept_prob + 0.3 * torch.ones_like(accept_prob)
-        
+
         u = torch.rand_like(accept_prob)
         accepted_mask = u < accept_prob
-        
-        # Salvaguarda: asegurar al menos N_ens candidatos aceptados
+
+        min_pool = max(N_ens, min(N_ens * 4, states.shape[0]))
         if accepted_mask.sum() < N_ens:
-            _, top_idx = torch.topk(R_norm, k=min(N_ens * 4, states.shape[0]))
+            _, top_idx = torch.topk(R_norm, k=min_pool)
             pool_states = states[top_idx]
             pool_R = R_norm[top_idx]
             pool_parents = parent_ids[top_idx]
@@ -90,10 +90,10 @@ class CFM:
             pool_R = R_norm[accepted_mask]
             pool_parents = parent_ids[accepted_mask]
 
-        # 3. GREEDY k-DPP (Selección con repulsión para maximizar diversidad)
+        # 3. GREEDY k-DPP (Selección diversa con repulsión geométrica en R^6)
         M_pool = pool_states.shape[0]
         q = torch.exp(0.5 * alpha * pool_R)
-        
+
         dist_sq = torch.cdist(pool_states, pool_states, p=2.0) ** 2
         K_sim = torch.exp(-dist_sq / (2.0 * length_scale ** 2))
         L = (q[:, None] * K_sim) * q[None, :]
@@ -105,15 +105,15 @@ class CFM:
         for k in range(N_ens):
             idx = torch.argmax(diag_L).item()
             selected_idxs.append(idx)
-            
+
             if k == N_ens - 1:
                 break
-                
+
             e_i = L[idx, :]
             if k > 0:
                 proj = torch.mv(cis[:k, :].T, cis[:k, idx])
                 e_i = e_i - proj
-            
+
             norm_val = torch.sqrt(torch.clamp(diag_L[idx], min=1e-12))
             cis[k, :] = e_i / norm_val
             diag_L = diag_L - cis[k, :] ** 2
@@ -122,7 +122,7 @@ class CFM:
         selected_idxs = torch.tensor(selected_idxs, device=device, dtype=torch.long)
         chosen = pool_states[selected_idxs]
         chosen_parents = pool_parents[selected_idxs]
-        
+
         return chosen[:, 0:3], chosen[:, 3:6], chosen_parents
 
 

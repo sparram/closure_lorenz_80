@@ -71,13 +71,14 @@ def run():
         for step in range(N_test):
             Y_cond = hist_buffer[:, ::stride, :].reshape(N_ens, 3 * K)
             
-            CFM_pred = cfm.tail_sample(Y_cond)
-            X_pred_norm, Z_pred_norm, parent_idxs = CFM_pred
-            
-            # Sincronizar Y_pred e hist_buffer con los miembros elegidos (como en Particle Filtering)
-            Y_pred = Y_pred[parent_idxs]
-            hist_buffer = hist_buffer[parent_idxs]
+            X_pred_norm, Z_pred_norm, parent_idxs = cfm.tail_sample(
+                Y_cond, N_noise=32, N_steps=4, alpha=0.1, length_scale=1.25
+            )
 
+            # Sincronizar Y_pred e hist_buffer con los ancestros elegidos + jitter suave
+            Y_pred = Y_pred[parent_idxs] + 1e-3 * torch.randn_like(Y_pred)
+            hist_buffer = hist_buffer[parent_idxs]
+            
             X_pred = X_pred_norm * stdX + meanX
             Z_pred = Z_pred_norm * stdZ + meanZ
 
