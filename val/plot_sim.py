@@ -57,9 +57,8 @@ def dynamics(U_pred, U_test, split_idx, N_sim):
         u_pred = U_pred[:, :, idx]
         
         u_mean = u_pred.mean(dim=1).cpu().numpy()
-        u_std = u_pred.std(dim=1).cpu().numpy()
-        lw_limit = u_mean - 2 * u_std
-        up_limit = u_mean + 2 * u_std
+        lw_limit = torch.quantile(u_pred, 0.025, dim=1).cpu().numpy()
+        up_limit = torch.quantile(u_pred, 0.975, dim=1).cpu().numpy()
 
         ax.plot(time, u_real, '-', color='k', label='Data', alpha=0.9, linewidth=1.2)
         ax.plot(time, u_mean, '--', color=colors[i], label='CFM Mean', linewidth=1.2)
