@@ -71,7 +71,7 @@ def run():
         for step in range(N_test):
             Y_cond = hist_buffer[:, ::stride, :].reshape(N_ens, 3 * K)
             
-            CFM_pred = cfm.div_enhacing_sample(Y_cond, N_noise=32, N_steps=4, alpha=0.1, length_scale=1.25)
+            CFM_pred = cfm.div_enhacing_sample(Y_cond, N_noise=32, alpha=0.1, length_scale=1.25)
             X_pred_norm, Z_pred_norm, parent_idxs = CFM_pred
             
             Y_pred = Y_pred[parent_idxs] + 1e-3 * torch.randn_like(Y_pred)
